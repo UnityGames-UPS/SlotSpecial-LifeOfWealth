@@ -1,0 +1,572 @@
+fileFormatVersion: 2
+guid: ce95076eccd268a438329040f39b5adb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 2129429556006538431
+    second: MULTIPLIER_TEXT_00030_0
+  - first:
+      213: 3736766915970767964
+    second: MULTIPLIER_TEXT_00030_1
+  - first:
+      213: -6100711976409837427
+    second: MULTIPLIER_TEXT_00030_2
+  - first:
+      213: -7439138612495969795
+    second: MULTIPLIER_TEXT_00030_3
+  - first:
+      213: -3701779951805858930
+    second: MULTIPLIER_TEXT_00030_4
+  - first:
+      213: 3590095753616729031
+    second: MULTIPLIER_TEXT_00030_5
+  - first:
+      213: 8076125302075713657
+    second: MULTIPLIER_TEXT_00030_6
+  - first:
+      213: 6777577006313437461
+    second: MULTIPLIER_TEXT_00030_7
+  - first:
+      213: 7696612744704114138
+    second: MULTIPLIER_TEXT_00030_8
+  - first:
+      213: 174194801387381570
+    second: MULTIPLIER_TEXT_00030_9
+  - first:
+      213: -3558039047549113869
+    second: MULTIPLIER_TEXT_00030_10
+  - first:
+      213: -2370608214914884650
+    second: MULTIPLIER_TEXT_00030_11
+  - first:
+      213: -7262707895611917109
+    second: MULTIPLIER_TEXT_00030_12
+  - first:
+      213: 7628944767198282969
+    second: MULTIPLIER_TEXT_00030_13
+  - first:
+      213: -4148436531920497652
+    second: MULTIPLIER_TEXT_00030_14
+  - first:
+      213: -5515613513516644950
+    second: MULTIPLIER_TEXT_00030_15
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WindowsStoreApps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_0
+      rect:
+        serializedVersion: 2
+        x: 29
+        y: 87
+        width: 260
+        height: 193
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fbcccf326e04d8d10800000000000000
+      internalID: 2129429556006538431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_1
+      rect:
+        serializedVersion: 2
+        x: 287
+        y: 118
+        width: 10
+        height: 160
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c5c9eda36b9abd330800000000000000
+      internalID: 3736766915970767964
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_2
+      rect:
+        serializedVersion: 2
+        x: 293
+        y: 88
+        width: 87
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d80de19c7cae55ba0800000000000000
+      internalID: -6100711976409837427
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_3
+      rect:
+        serializedVersion: 2
+        x: 351
+        y: 91
+        width: 117
+        height: 203
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df1194f98ded2c890800000000000000
+      internalID: -7439138612495969795
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_4
+      rect:
+        serializedVersion: 2
+        x: 467
+        y: 88
+        width: 45
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e8bf2f72fb2a0acc0800000000000000
+      internalID: -3701779951805858930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_5
+      rect:
+        serializedVersion: 2
+        x: 509
+        y: 90
+        width: 10
+        height: 190
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c3a6f7111592d130800000000000000
+      internalID: 3590095753616729031
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_6
+      rect:
+        serializedVersion: 2
+        x: 518
+        y: 88
+        width: 104
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 97864cf4c29241070800000000000000
+      internalID: 8076125302075713657
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_7
+      rect:
+        serializedVersion: 2
+        x: 620
+        y: 88
+        width: 92
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 519fa2bc06ace0e50800000000000000
+      internalID: 6777577006313437461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_8
+      rect:
+        serializedVersion: 2
+        x: 712
+        y: 88
+        width: 46
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: add35dd438cdfca60800000000000000
+      internalID: 7696612744704114138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_9
+      rect:
+        serializedVersion: 2
+        x: 756
+        y: 155
+        width: 8
+        height: 114
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2432a6abf3dda6200800000000000000
+      internalID: 174194801387381570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_10
+      rect:
+        serializedVersion: 2
+        x: 763
+        y: 88
+        width: 96
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f9add9665e4f9ec0800000000000000
+      internalID: -3558039047549113869
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_11
+      rect:
+        serializedVersion: 2
+        x: 853
+        y: 242
+        width: 6
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6db10687368e91fd0800000000000000
+      internalID: -2370608214914884650
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_12
+      rect:
+        serializedVersion: 2
+        x: 858
+        y: 88
+        width: 114
+        height: 192
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bcc70aef5ada53b90800000000000000
+      internalID: -7262707895611917109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_13
+      rect:
+        serializedVersion: 2
+        x: 756
+        y: 95
+        width: 8
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d4cdeb88d47fd960800000000000000
+      internalID: 7628944767198282969
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_14
+      rect:
+        serializedVersion: 2
+        x: 853
+        y: 102
+        width: 6
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0410ad14facd66c0800000000000000
+      internalID: -4148436531920497652
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MULTIPLIER_TEXT_00030_15
+      rect:
+        serializedVersion: 2
+        x: 785
+        y: 84
+        width: 11
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa50f708bba9473b0800000000000000
+      internalID: -5515613513516644950
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      MULTIPLIER_TEXT_00030_0: 2129429556006538431
+      MULTIPLIER_TEXT_00030_1: 3736766915970767964
+      MULTIPLIER_TEXT_00030_10: -3558039047549113869
+      MULTIPLIER_TEXT_00030_11: -2370608214914884650
+      MULTIPLIER_TEXT_00030_12: -7262707895611917109
+      MULTIPLIER_TEXT_00030_13: 7628944767198282969
+      MULTIPLIER_TEXT_00030_14: -4148436531920497652
+      MULTIPLIER_TEXT_00030_15: -5515613513516644950
+      MULTIPLIER_TEXT_00030_2: -6100711976409837427
+      MULTIPLIER_TEXT_00030_3: -7439138612495969795
+      MULTIPLIER_TEXT_00030_4: -3701779951805858930
+      MULTIPLIER_TEXT_00030_5: 3590095753616729031
+      MULTIPLIER_TEXT_00030_6: 8076125302075713657
+      MULTIPLIER_TEXT_00030_7: 6777577006313437461
+      MULTIPLIER_TEXT_00030_8: 7696612744704114138
+      MULTIPLIER_TEXT_00030_9: 174194801387381570
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
