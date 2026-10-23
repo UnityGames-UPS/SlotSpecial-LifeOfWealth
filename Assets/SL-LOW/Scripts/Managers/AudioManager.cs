@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class AudioManager : MonoBehaviour
 {
@@ -38,7 +39,7 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip clipGameMainBg;
     [SerializeField] private AudioClip clipBetPlusMinus;
     [SerializeField] private AudioClip clipMaxBetReached;
-    [SerializeField] private AudioClip clip3UspinWinLineLoop;
+    [FormerlySerializedAs("clip3UspinWinLineLoop"), SerializeField] private AudioClip clipScatterTriggerLoop;
     [SerializeField] private AudioClip clipWinObjectBg;
     [SerializeField] private AudioClip clipPrimaryActionButton;
     [SerializeField] private AudioClip clipGeneralButtonClick;
@@ -177,16 +178,16 @@ public class AudioManager : MonoBehaviour
         PlayUISound(clipMaxBetReached);
     }
 
-    // 4. 3 USpin Win Line Loop
-    internal void Play3UspinWinLineLoop()
+    // 4. Scatter / Free Spins Trigger Loop
+    internal void PlayScatterTriggerLoop()
     {
-        if (!_sfxEnabled || clip3UspinWinLineLoop == null) return;
-        PlayLoop(uiSource, clip3UspinWinLineLoop);
+        if (!_sfxEnabled || clipScatterTriggerLoop == null) return;
+        PlayLoop(uiSource, clipScatterTriggerLoop);
     }
 
-    internal void Stop3UspinWinLineLoop()
+    internal void StopScatterTriggerLoop()
     {
-        if (uiSource != null && uiSource.clip == clip3UspinWinLineLoop)
+        if (uiSource != null && uiSource.clip == clipScatterTriggerLoop)
         {
             StopSource(uiSource);
         }

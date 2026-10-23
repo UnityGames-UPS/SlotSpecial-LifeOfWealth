@@ -30,9 +30,25 @@ public class ImageAnimation : MonoBehaviour
     private int indexOfTexture;
     private float idealFrameRate = 0.0416666679f; // ~24 fps
     private float delayBetweenAnimation;
+    private float synchronizedLoopDuration = -1f;
 
     public float AnimationSpeed = 5f;
     public float delayBetweenLoop;
+
+    /// <summary>
+    /// Makes one full pass through textureArray take the supplied duration,
+    /// regardless of how many frames that animation contains.
+    /// </summary>
+    public void SetLoopDuration(float duration)
+    {
+        synchronizedLoopDuration = Mathf.Max(0.01f, duration);
+        delayBetweenLoop = 0f;
+    }
+
+    public void ClearLoopDuration()
+    {
+        synchronizedLoopDuration = -1f;
+    }
 
     private void Awake()
     {
@@ -116,7 +132,9 @@ public class ImageAnimation : MonoBehaviour
 
         RevertToInitialState();
 
-        delayBetweenAnimation = idealFrameRate * (float)textureArray.Count / AnimationSpeed;
+        delayBetweenAnimation = synchronizedLoopDuration > 0f
+            ? synchronizedLoopDuration / textureArray.Count
+            : idealFrameRate * (float)textureArray.Count / AnimationSpeed;
         if (delayBetweenAnimation <= 0) delayBetweenAnimation = 0.05f;
 
         Invoke(nameof(AnimationProcess), delayBetweenAnimation);

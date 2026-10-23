@@ -5,7 +5,6 @@ using UnityEngine;
 using Best.SocketIO;
 using Best.SocketIO.Events;
 using Newtonsoft.Json;
-using UnityEngine.UI;
 
 public class SocketIOManager : MonoBehaviour
 {
@@ -22,15 +21,12 @@ public class SocketIOManager : MonoBehaviour
   [SerializeField] internal JSFunctCalls JSManager;
   [SerializeField] private GameObject RaycastBlocker;
 
-  [SerializeField] private List<Button> buttons;
-
   private SocketManager socketManager;
   private Socket gameSocket;
 
   private string authToken;
   private string socketURL;
 
-  private bool JackpotOpen;
   internal bool isConnected;
   internal bool isInitialized;
   internal bool isExiting;   // True when CloseSocket is called intentionally (exit button)
@@ -64,43 +60,6 @@ public class SocketIOManager : MonoBehaviour
     isDestroyed = false;
     socketSetupStarted = false;
 
-    for (int i = 0; i < buttons.Count; i++)
-    {
-      buttons[i].onClick.RemoveAllListeners();
-      string buttonName = buttons[i].name;
-      buttons[i].onClick.AddListener(() => SendJackpotOpen(buttonName));
-    }
-  }
-
-  void SendJackpotOpen(string JackpotType)
-  {
-    if (JackpotOpen)
-      return;
-
-    JackpotOpen = true;
-
-    var request = new JackpotOpenRequest
-    {
-      type = "JACKPOT_OPEN",
-      payload = new JackpotOpenPayload
-      {
-        tier = JackpotType
-      }
-    };
-
-    string json = JsonConvert.SerializeObject(request);
-    Debug.Log($"[SocketIO] Jackpot Open request: {json}");
-    if (gameSocket != null)
-    {
-      gameSocket.Emit("request", json);
-    }
-
-    Invoke(nameof(ResetJackpotOpen), 1f);
-  }
-
-  void ResetJackpotOpen()
-  {
-    JackpotOpen = false;
   }
 
   private void Start()
@@ -205,8 +164,6 @@ public class SocketIOManager : MonoBehaviour
     gameSocket.On("pong", OnPongReceivedNoArgs);
     gameSocket.On<string>("AnotherDevice", OnAnotherDevice);
     gameSocket.On<string>("balance:sync", OnBalanceSyncReceived);
-    gameSocket.On<string>("jackpot:sync", OnJackpotSyncReceived);
-
     socketManager.Open();
   }
 
@@ -314,16 +271,10 @@ public class SocketIOManager : MonoBehaviour
       var initData = JsonConvert.DeserializeObject<InitData>(jsonData);
       var gameConfig = InitDataConverter.ConvertToGameConfig(initData);
       var playerData = InitDataConverter.ConvertToPlayerData(initData.player);
-      var initialMatrix = GenerateRandomMatrix(gameConfig.rowCount);
 
       isInitialized = true;
 
-      gameManager.OnInitDataReceived(gameConfig, playerData, initialMatrix);
-
-      if (initData.jackpotData != null && initData.jackpotData.values != null && uiManager != null)
-      {
-        uiManager.UpdateJackpotDisplay(initData.jackpotData.values);
-      }
+      gameManager.OnInitDataReceived(gameConfig, playerData);
 
       if (RaycastBlocker) RaycastBlocker.SetActive(false);
 
@@ -347,16 +298,17 @@ public class SocketIOManager : MonoBehaviour
 
   private void OnResultReceived(string jsonData)
   {
-    if (!jsonData.Contains("\"id\":\"ResultData\""))
-    {
-      return;
-    }
-
     Debug.Log($"[SocketIO] Result received: {jsonData}");
 
     try
     {
       var serverResponse = JsonConvert.DeserializeObject<ServerSpinResponse>(jsonData);
+
+      if (serverResponse == null || !string.Equals(serverResponse.id, "ResultData", StringComparison.OrdinalIgnoreCase))
+      {
+        Debug.LogWarning("[SocketIO] Ignoring an unsupported result payload.");
+        return;
+      }
 
       if (!serverResponse.success)
       {
@@ -365,13 +317,11 @@ public class SocketIOManager : MonoBehaviour
       }
 
       double currentBalance = gameManager.playerData.balance;
-      double betAmount = gameManager.currentBetAmount;
       GameConfig gameConfig = gameManager.gameConfig;
 
       SpinResult result = InitDataConverter.ConvertServerResponseToSpinResult(
           serverResponse,
           currentBalance,
-          betAmount,
           gameConfig
       );
 
@@ -416,25 +366,6 @@ public class SocketIOManager : MonoBehaviour
     catch (Exception e)
     {
       Debug.LogError($"[SocketIO] Balance Sync parse failed: {e.Message}");
-    }
-  }
-
-  private void OnJackpotSyncReceived(string jsonData)
-  {
-    Debug.Log($"[SocketIO] Jackpot Sync received: {jsonData}");
-
-    try
-    {
-      var syncData = JsonConvert.DeserializeObject<JackpotSyncData>(jsonData);
-
-      if (syncData != null && syncData.values != null && uiManager != null)
-      {
-        uiManager.UpdateJackpotDisplay(syncData.values);
-      }
-    }
-    catch (Exception e)
-    {
-      Debug.LogError($"[SocketIO] Jackpot Sync parse failed: {e.Message}");
     }
   }
 
@@ -687,20 +618,6 @@ public class SocketIOManager : MonoBehaviour
   }
 
   #endregion
-  private List<List<int>> GenerateRandomMatrix(int rowCount)
-  {
-    var matrix = new List<List<int>>();
-    for (int col = 0; col < 5; col++)
-    {
-      var column = new List<int>();
-      for (int row = 0; row < rowCount; row++)
-      {
-        column.Add(UnityEngine.Random.Range(0, 10));
-      }
-      matrix.Add(column);
-    }
-    return matrix;
-  }
 }
 
 

@@ -9,7 +9,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] internal UIManager uiManager;
     [SerializeField] private PopupManager popupManager;
     [SerializeField] private SlotView slotView;
-    [SerializeField] internal WheelSpinController wheelController;
 
     [Header("Spin Settings")]
     [SerializeField] private float normalSpinDuration = 3.5f;
@@ -41,6 +40,10 @@ public class GameManager : MonoBehaviour
     internal int freeSpinsRemaining;
     internal int freeSpinsUsed;
     internal bool waitingForFreeSpinStart;
+    internal double CurrentFreeSpinWin => totalFreeSpinWin;
+
+    private int totalFreeSpinsAwarded;
+    private double totalFreeSpinWin;
 
     internal bool isInitialized;
     internal bool initializationFailed;
@@ -60,22 +63,12 @@ public class GameManager : MonoBehaviour
         initializationFailed = false;
     }
 
-    internal void OnInitDataReceived(GameConfig config, PlayerData player, List<List<int>> initialMatrix)
+    internal void OnInitDataReceived(GameConfig config, PlayerData player)
     {
         gameConfig = config;
         playerData = player;
         currentBetIndex = playerData.currentBetIndex;
         UpdateBetAmount();
-
-        if (initialMatrix != null && slotView != null)
-        {
-            slotView.SetInitialMatrix(initialMatrix);
-        }
-
-        if (wheelController != null && gameConfig.uSpinSegments != null)
-        {
-            wheelController.OverrideSegmentsWithData(gameConfig.uSpinSegments);
-        }
 
         isInitialized = true;
         currentState = GameState.Idle;
@@ -231,13 +224,6 @@ public class GameManager : MonoBehaviour
             yield return null;
         }
 
-        // Player pressed Stop manually — hold for 0.5s so the reels keep
-        // spinning briefly before snapping, giving clear visual feedback.
-        if (stopRequested)
-        {
-            yield return new WaitForSeconds(0.5f);
-        }
-
         while (lastResult == null)
         {
             yield return null;
@@ -247,7 +233,7 @@ public class GameManager : MonoBehaviour
 
         if (slotView != null && lastResult.resultMatrix != null)
         {
-            if (currentSpinSpeed == SpinSpeed.QuickSpin || stopRequested)
+            if (currentSpinSpeed == SpinSpeed.QuickSpin)
             {
                 slotView.QuickStop(lastResult.resultMatrix);
 
@@ -256,6 +242,12 @@ public class GameManager : MonoBehaviour
                 yield return new WaitForSeconds(quickStopWaitTime);
 
                 OnReelsStoppedComplete();
+            }
+            else if (stopRequested)
+            {
+                // Preserve normal reel speed and landing, but stop every reel
+                // together with no interval after a manual Stop request.
+                slotView.StopSpinTogether(lastResult.resultMatrix, OnReelsStoppedComplete);
             }
             else
             {
@@ -272,12 +264,9 @@ public class GameManager : MonoBehaviour
     {
         if (lastResult != null)
         {
-            double featureDeferredWin = lastResult.GetTotalFeatureDeferredWins();
-            double reelStopBalance = lastResult.playerData != null ? (lastResult.playerData.balance - featureDeferredWin) : 0;
-
             playerData = new PlayerData
             {
-                balance = reelStopBalance,
+                balance = lastResult.playerData != null ? lastResult.playerData.balance : playerData.balance,
                 currentBetIndex = lastResult.playerData != null ? lastResult.playerData.currentBetIndex : currentBetIndex
             };
         }
@@ -364,19 +353,7 @@ public class GameManager : MonoBehaviour
             yield return null;
         }
 
-        if (lastResult != null && lastResult.uSpinData != null && lastResult.uSpinData.triggered)
-        {
-            yield return StartCoroutine(DelayUSpinTriggerResult());
-            yield break;
-        }
-
-        if (lastResult != null && lastResult.moneyBagData != null && lastResult.moneyBagData.triggered)
-        {
-            yield return StartCoroutine(DelayMoneyBagTriggerResult());
-            yield break;
-        }
-
-        if (lastResult != null && lastResult.freeSpinData != null && lastResult.freeSpinData.isTriggered && !isInFreeSpins)
+        if (lastResult != null && lastResult.freeSpinData != null && lastResult.freeSpinData.isTriggered)
         {
             yield return StartCoroutine(DelayScatterTriggerResult());
             yield break;
@@ -399,61 +376,16 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator DelayScatterTriggerResult()
     {
-        // Play special feature trigger sound AFTER all reels have stopped
-        AudioManager.Instance?.Play3UspinWinLineLoop();
+        AudioManager.Instance?.PlayScatterTriggerLoop();
 
-        // Start scatter animations together AFTER all reels have stopped
-        // Using 4 loops to match the 6-second delay (4 * 1.5s = 6s)
-        slotView.AnimateAllScatters(4);
+        if (slotView != null)
+        {
+            slotView.AnimateAllScatters(2);
+        }
 
-        // Wait for scatter hit animations to play
-        yield return new WaitForSeconds(3.5f);
+        yield return new WaitForSeconds(2f);
+        AudioManager.Instance?.StopScatterTriggerLoop();
         ProcessSpinResult();
-    }
-
-    private IEnumerator DelayUSpinTriggerResult()
-    {
-        AudioManager.Instance?.Play3UspinWinLineLoop();
-
-        bool animFinished = false;
-        if (slotView != null)
-        {
-            slotView.AnimateUSpinWin(() =>
-            {
-                animFinished = true;
-            });
-        }
-        else
-        {
-            animFinished = true;
-        }
-
-        yield return new WaitUntil(() => animFinished);
-
-        uiManager.TriggerUSpinBonus(lastResult.uSpinData, () =>
-        {
-            AudioManager.Instance?.Stop3UspinWinLineLoop();
-            lastResult.uSpinData.triggered = false;
-            ResumeAfterSpecialFeature();
-        });
-    }
-
-    private IEnumerator DelayMoneyBagTriggerResult()
-    {
-        AudioManager.Instance?.Play3UspinWinLineLoop();
-
-        if (slotView != null)
-        {
-            slotView.AnimateMoneyBagWin();
-        }
-
-        yield return new WaitForSeconds(3.5f);
-
-        uiManager.TriggerMoneyBagBonus(lastResult.moneyBagData, () =>
-        {
-            lastResult.moneyBagData.triggered = false;
-            ResumeAfterSpecialFeature();
-        });
     }
 
     private IEnumerator DelayBeforeNextRound()
@@ -476,7 +408,11 @@ public class GameManager : MonoBehaviour
         {
             SpinSpeed.Normal => normalSpinDuration,
             SpinSpeed.Turbo => turboSpinDuration,
-            SpinSpeed.QuickSpin => quickSpinCycleDuration,
+            // Quick/Skip runs for one complete visual reel rotation. If the
+            // backend result is later than this, SpinRoutine keeps waiting for it.
+            SpinSpeed.QuickSpin => slotView != null
+                ? slotView.GetQuickSpinRotationDuration()
+                : quickSpinCycleDuration,
             _ => normalSpinDuration
         };
     }
@@ -485,31 +421,17 @@ public class GameManager : MonoBehaviour
     {
         lastResult = result;
 
-        // CRITICAL FIX: Update free spin counter IMMEDIATELY when server response arrives
-        // This ensures the display shows the exact server-authoritative played count without lag
-        if (isInFreeSpins && result.serverSpinsRemaining >= 0)
+        if (isInFreeSpins)
         {
+            if (result.freeSpinData != null && result.freeSpinData.isTriggered && result.freeSpinData.spinsAwarded > 0)
+            {
+                totalFreeSpinsAwarded += result.freeSpinData.spinsAwarded;
+            }
+
             freeSpinsRemaining = result.serverSpinsRemaining;
-            freeSpinsUsed = result.serverSpinsUsed;
-            int displayTotalSpins = result.serverTotalSpins;
-
-            if (result.uSpinData != null && result.uSpinData.triggered && result.uSpinData.freeGamesAwarded > 0)
-            {
-                // Defer adding the newly won free spins to total count until wheel spin completes and user presses Take!
-                displayTotalSpins -= result.uSpinData.freeGamesAwarded;
-                freeSpinsRemaining -= result.uSpinData.freeGamesAwarded;
-            }
-
-            uiManager.UpdateFreeSpinCount(freeSpinsUsed, displayTotalSpins);
-        }
-
-        if (result.winLines != null)
-        {
-            for (int i = 0; i < result.winLines.Count; i++)
-            {
-                var line = result.winLines[i];
-
-            }
+            freeSpinsUsed = Mathf.Max(0, totalFreeSpinsAwarded - freeSpinsRemaining);
+            totalFreeSpinWin += result.winAmount;
+            uiManager.UpdateFreeSpinCount(freeSpinsUsed, totalFreeSpinsAwarded);
         }
     }
 
@@ -519,21 +441,12 @@ public class GameManager : MonoBehaviour
 
         uiManager.OnSpinCompleted(lastResult);
 
-        // Extract server-authoritative values before nullifying lastResult
         int serverSpinsRemaining = lastResult.serverSpinsRemaining;
-        int serverSpinsUsed = lastResult.serverSpinsUsed;
-        double serverTotalRoundWin = lastResult.serverTotalRoundWin;
-        bool isRoundOver = lastResult.isRoundOver;
-
-        // Note: freeSpinsRemaining already updated in OnSpinResultReceived
-        // Keeping this for safety in case OnSpinResultReceived wasn't called
         if (isInFreeSpins && freeSpinsRemaining != serverSpinsRemaining)
         {
             freeSpinsRemaining = serverSpinsRemaining;
         }
 
-
-        // Check if free spins were just triggered (initial trigger from base game)
         if (lastResult.freeSpinData != null && lastResult.freeSpinData.isTriggered && !isInFreeSpins)
         {
             StartFreeSpins(lastResult.freeSpinData.spinsAwarded);
@@ -577,13 +490,9 @@ public class GameManager : MonoBehaviour
         }
         else if (isInFreeSpins)
         {
-            // Free spin counter already updated in OnSpinResultReceived
-            // No need to update again here
-
-            if (isRoundOver || freeSpinsRemaining <= 0)
+            if (freeSpinsRemaining <= 0)
             {
-                // Always use server-authoritative spinsUsed
-                EndFreeSpins(serverTotalRoundWin, serverSpinsUsed);
+                EndFreeSpins(totalFreeSpinWin, freeSpinsUsed);
             }
             else
             {
@@ -681,6 +590,8 @@ public class GameManager : MonoBehaviour
         isInFreeSpins = true;
         freeSpinsRemaining = spins;
         freeSpinsUsed = 0;
+        totalFreeSpinsAwarded = spins;
+        totalFreeSpinWin = 0;
         waitingForFreeSpinStart = true;
         AudioManager.Instance?.PlayFreeSpinBg();
 
@@ -731,6 +642,7 @@ public class GameManager : MonoBehaviour
     {
         isInFreeSpins = false;
         freeSpinsRemaining = 0;
+        totalFreeSpinsAwarded = 0;
         AudioManager.Instance?.PlayMainBg();
 
         uiManager.OnFreeSpinsEnded(totalRoundWin, totalSpinsUsed);
@@ -773,8 +685,10 @@ public class GameManager : MonoBehaviour
 
     internal double GetTotalPay()
     {
-        double divisor = (gameConfig != null && gameConfig.creditDivisor > 0) ? gameConfig.creditDivisor : 25;
-        return currentBetAmount * divisor;
+        int activeLines = gameConfig != null && gameConfig.paylineCount > 0
+            ? gameConfig.paylineCount
+            : 15;
+        return currentBetAmount * activeLines;
     }
 
     internal bool CanAffordBet()
@@ -796,7 +710,7 @@ public class GameManager : MonoBehaviour
     {
         if (matrix == null) return false;
 
-        int scatterId = gameConfig != null ? gameConfig.scatterSymbolId : 12;
+        int scatterId = gameConfig != null ? gameConfig.scatterSymbolId : 1;
 
         foreach (var col in matrix)
         {

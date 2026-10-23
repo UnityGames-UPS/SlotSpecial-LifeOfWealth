@@ -139,28 +139,28 @@ public class SymbolInfoCard : MonoBehaviour
 
         string symbolNameLower = symbolInfo != null ? (symbolInfo.name ?? "").ToLower() : "";
 
-        // Check if special symbol: Wild (ID 10), USpin (ID 11), MoneyBag (ID 12)
-        bool isWild = (symbolId == 10) || (symbolInfo != null && symbolInfo.isWild) || symbolNameLower.Contains("wild");
-        bool isUSpin = (symbolId == 11) || symbolNameLower.Contains("uspin");
-        bool isMoneyBag = (symbolId == 12) || symbolNameLower.Contains("moneybag") || symbolNameLower.Contains("money bag");
+        int wildId = gameManager?.gameConfig != null ? gameManager.gameConfig.wildSymbolId : 0;
+        int scatterId = gameManager?.gameConfig != null ? gameManager.gameConfig.scatterSymbolId : 1;
+        bool isWild = symbolId == wildId || (symbolInfo != null && symbolInfo.isWild) || symbolNameLower.Contains("wild");
+        bool isScatter = symbolId == scatterId || (symbolInfo != null && symbolInfo.isScatter) || symbolNameLower.Contains("scatter");
 
-        if (isWild || isUSpin || isMoneyBag)
+        if (isWild || isScatter)
         {
-            // SPECIAL SYMBOL: Text alignment CENTER
             infoText.alignment = TextAlignmentOptions.Center;
             infoText.enableWordWrapping = true;
-if (isUSpin)
-{
-    infoText.text = "3 U-Spin symbols trigger the Wheel Bonus feature.";
-}
-else if (isMoneyBag)
-{
-    infoText.text = "3 Money Bag symbols trigger the Money Bag Collect feature.";
-}
-else if (isWild)
-{
-    infoText.text = "Substitutes for all symbols except U-Spin and Money Bag.";
-}
+
+            if (!string.IsNullOrWhiteSpace(symbolInfo?.description))
+            {
+                infoText.text = symbolInfo.description;
+            }
+            else if (isScatter)
+            {
+                infoText.text = "Pays anywhere. 3 or more Scatter symbols award 15 Free Spins.";
+            }
+            else
+            {
+                infoText.text = "Substitutes for all symbols except Scatter.";
+            }
         }
         else
         {

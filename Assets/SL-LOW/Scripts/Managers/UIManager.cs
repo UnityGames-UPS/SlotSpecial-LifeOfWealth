@@ -458,11 +458,6 @@ public class UIManager : MonoBehaviour
         if (expandButtonPortrait) expandButtonPortrait.onClick.AddListener(() => { AudioManager.Instance?.PlayButton(); OnExpand(); });
         if (shrinkButtonPortrait) shrinkButtonPortrait.onClick.AddListener(() => { AudioManager.Instance?.PlayButton(); OnShrink(); });
 
-        if (wheelSpinButton) wheelSpinButton.onClick.AddListener(() => { AudioManager.Instance?.PlayWheelStart(); OnWheelSpinClicked(); });
-        if (wheelSpinButton2) wheelSpinButton2.onClick.AddListener(() => { AudioManager.Instance?.PlayWheelStart(); OnWheelSpinClicked(); });
-        if (wheelSpinButtonPortrait) wheelSpinButtonPortrait.onClick.AddListener(() => { AudioManager.Instance?.PlayWheelStart(); OnWheelSpinClicked(); });
-        if (wheelSpinButtonPortrait2) wheelSpinButtonPortrait2.onClick.AddListener(() => { AudioManager.Instance?.PlayWheelStart(); OnWheelSpinClicked(); });
-
         // Take button for universal win popup
         if (uwpTakeButton) uwpTakeButton.onClick.AddListener(OnUniversalWinTakeButtonClicked);
         if (uwpTakeButtonPortrait) uwpTakeButtonPortrait.onClick.AddListener(OnUniversalWinTakeButtonClicked);
@@ -618,7 +613,9 @@ public class UIManager : MonoBehaviour
         UpdateBalanceDisplay();
         if (result != null)
         {
-            double displayWin = (gameManager != null && gameManager.isInFreeSpins) ? result.serverTotalRoundWin : result.winAmount;
+            double displayWin = (gameManager != null && gameManager.isInFreeSpins)
+                ? gameManager.CurrentFreeSpinWin
+                : result.winAmount;
             UpdateWinDisplay(displayWin);
         }
     }
@@ -627,7 +624,9 @@ public class UIManager : MonoBehaviour
     {
         if (result != null)
         {
-            double displayWin = (gameManager != null && gameManager.isInFreeSpins) ? result.serverTotalRoundWin : result.winAmount;
+            double displayWin = (gameManager != null && gameManager.isInFreeSpins)
+                ? gameManager.CurrentFreeSpinWin
+                : result.winAmount;
             UpdateWinDisplay(displayWin);
         }
         UpdateBalanceDisplay();
@@ -1596,8 +1595,8 @@ public class UIManager : MonoBehaviour
                 gameManager.playerData.balance += resultData.winInCash;
 
                 double targetWin = gameManager.isInFreeSpins
-                    ? gameManager.lastResult.serverTotalRoundWin
-                    : (gameManager.lastResult.grandTotalWin > 0 ? gameManager.lastResult.grandTotalWin : (gameManager.lastResult.winAmount + resultData.winInCash));
+                    ? gameManager.CurrentFreeSpinWin
+                    : gameManager.lastResult.winAmount + resultData.winInCash;
                 AnimateWinUpdate(targetWin);
                 AnimateBalanceUpdate(gameManager.playerData.balance, prevBalance);
             }
@@ -1689,8 +1688,8 @@ public class UIManager : MonoBehaviour
                 gameManager.playerData.balance += resultData.winInCash;
 
                 double targetWin = gameManager.isInFreeSpins
-                    ? gameManager.lastResult.serverTotalRoundWin
-                    : (gameManager.lastResult.grandTotalWin > 0 ? gameManager.lastResult.grandTotalWin : (gameManager.lastResult.winAmount + resultData.winInCash));
+                    ? gameManager.CurrentFreeSpinWin
+                    : gameManager.lastResult.winAmount + resultData.winInCash;
                 AnimateWinUpdate(targetWin);
                 AnimateBalanceUpdate(gameManager.playerData.balance, prevBalance);
             }
