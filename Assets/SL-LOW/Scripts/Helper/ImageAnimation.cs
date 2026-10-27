@@ -50,6 +50,41 @@ public class ImageAnimation : MonoBehaviour
         synchronizedLoopDuration = -1f;
     }
 
+    public bool HasAnimationFrames()
+    {
+        EnsureRenderer();
+        return rendererDelegate != null && textureArray != null && textureArray.Count > 0;
+    }
+
+    public void BeginSynchronizedPlayback()
+    {
+        if (!HasAnimationFrames()) return;
+
+        CancelInvoke(nameof(AnimationProcess));
+        currentLoopCount = 0;
+        currentAnimationState = ImageState.PLAYING;
+        SetSynchronizedTime(0f, 1f);
+    }
+
+    public void SetSynchronizedTime(float elapsedTime, float loopDuration)
+    {
+        if (!HasAnimationFrames()) return;
+
+        float safeLoopDuration = Mathf.Max(0.01f, loopDuration);
+        float normalizedTime = Mathf.Repeat(Mathf.Max(0f, elapsedTime), safeLoopDuration) / safeLoopDuration;
+        int frameIndex = Mathf.Min(textureArray.Count - 1, Mathf.FloorToInt(normalizedTime * textureArray.Count));
+
+        indexOfTexture = frameIndex;
+        rendererDelegate.sprite = textureArray[frameIndex];
+    }
+
+    public void EndSynchronizedPlayback()
+    {
+        CancelInvoke(nameof(AnimationProcess));
+        currentAnimationState = ImageState.NONE;
+        currentLoopCount = 0;
+    }
+
     private void Awake()
     {
         if (Instance == null)

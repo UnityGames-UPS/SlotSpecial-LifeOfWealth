@@ -109,17 +109,6 @@ public class SlotView : MonoBehaviour
     [Tooltip("Delay between enabling winBox overlay and starting the ImageAnimation - for sync timing")]
     [SerializeField] private float winLineBoxToAnimationDelay = 0.05f;
 
-    [Header("Phase 1 Total Win Presentation")]
-    [SerializeField] private TMPro.TMP_Text phase1TotalWinText;
-
-    [Header("Win Box Overlays — Col 0..4  (each has 3 rows: 0=top .. 2=bottom)")]
-    [SerializeField] private ColumnOverlays[] winBoxColumns = new ColumnOverlays[5];
-
-    [Header("Win Animation Objects — Col 0..4  (each has 3 rows, contains ImageAnimation component)")]
-    [Tooltip("GameObject references for win animations. Each should have an ImageAnimation component attached.")]
-    [SerializeField] private ColumnOverlays[] winAnimationColumns = new ColumnOverlays[5];
-
-
     [Header("Symbol Info Card")]
     [SerializeField] private SymbolInfoCard symbolInfoCard;
 
@@ -159,9 +148,7 @@ public class SlotView : MonoBehaviour
 
     private void DisableAllOverlays()
     {
-        DisableColumns(winBoxColumns);
         StopAnimationOverlays();
-        HidePhase1TotalWinText();
         if (symbolInfoCard) symbolInfoCard.HideCard();
     }
 
@@ -265,29 +252,6 @@ public class SlotView : MonoBehaviour
         if (!HasCompleteResultLayer())
         {
             Debug.LogError("[SlotView] SlotAnimHolder must contain 5 columns with 3 Image children in each column.");
-            return;
-        }
-
-        // SlotAnimHolder is animation-only. Rebuild its missing references in
-        // memory so no scene/prefab edit is required.
-        if (winAnimationColumns == null || winAnimationColumns.Length != 5)
-        {
-            winAnimationColumns = new ColumnOverlays[5];
-        }
-
-        for (int col = 0; col < 5; col++)
-        {
-            if (winAnimationColumns[col] == null)
-                winAnimationColumns[col] = new ColumnOverlays();
-
-            if (winAnimationColumns[col].rows == null || winAnimationColumns[col].rows.Length != 3)
-                winAnimationColumns[col].rows = new GameObject[3];
-
-            for (int row = 0; row < 3; row++)
-            {
-                if (winAnimationColumns[col].rows[row] == null)
-                    winAnimationColumns[col].rows[row] = slotAnimationImages[col].images[row].gameObject;
-            }
         }
     }
 
@@ -340,18 +304,71 @@ public class SlotView : MonoBehaviour
         }
     }
 
-    private static void DisableColumns(ColumnOverlays[] cols)
+    private GameObject GetAnimationObject(int column, int row)
     {
-        if (cols == null) return;
-        foreach (var col in cols)
-            if (col?.rows != null)
-                foreach (var go in col.rows)
-                    if (go) go.SetActive(false);
+        if (slotAnimationImages == null || column < 0 || column >= slotAnimationImages.Count) return null;
+
+        ReelImages animationColumn = slotAnimationImages[column];
+        if (animationColumn == null || animationColumn.images == null || row < 0 || row >= animationColumn.images.Count)
+            return null;
+
+        Image animationImage = animationColumn.images[row];
+        return animationImage != null ? animationImage.gameObject : null;
     }
 
-    private static GameObject WinBox(ColumnOverlays[] cols, int col, int row)
-        => (col >= 0 && col < cols?.Length && cols[col]?.rows != null && row >= 0 && row < cols[col].rows.Length)
-            ? cols[col].rows[row] : null;
+    private void SynchronizeWinBoxLoop(GameObject symbolAnimationObject, ImageAnimation symbolAnimation)
+    {
+        if (symbolAnimationObject == null) return;
+
+        // Each SlotAnimHolder symbol has its WinBox as a child. The symbol
+        // completes two loops while the WinBox completes one loop over the
+        // same total duration, so both reach a clean boundary together.
+        float winBoxLoopDuration = winSymbolLoopDuration * 2f;
+        ImageAnimation[] childAnimations = symbolAnimationObject.GetComponentsInChildren<ImageAnimation>(true);
+
+        foreach (ImageAnimation childAnimation in childAnimations)
+        {
+            if (childAnimation == null || childAnimation == symbolAnimation) continue;
+
+            childAnimation.SetLoopDuration(winBoxLoopDuration);
+            childAnimation.doLoopAnimation = true;
+            childAnimation.onLoopComplete = null;
+        }
+    }
+
+    private static List<ImageAnimation> GetWinBoxAnimations(GameObject symbolAnimationObject, ImageAnimation symbolAnimation)
+    {
+        List<ImageAnimation> winBoxAnimations = new List<ImageAnimation>();
+        if (symbolAnimationObject == null) return winBoxAnimations;
+
+        ImageAnimation[] childAnimations = symbolAnimationObject.GetComponentsInChildren<ImageAnimation>(true);
+        foreach (ImageAnimation childAnimation in childAnimations)
+        {
+            if (childAnimation == null || childAnimation == symbolAnimation) continue;
+            if (childAnimation.gameObject.activeSelf && childAnimation.HasAnimationFrames())
+                winBoxAnimations.Add(childAnimation);
+        }
+
+        return winBoxAnimations;
+    }
+
+    private List<Sprite> GetLoopingSymbolFrames(int symbolId)
+    {
+        if (animationSpriteArrays == null || symbolId < 0 || symbolId >= animationSpriteArrays.Length)
+            return null;
+
+        List<Sprite> frames = animationSpriteArrays[symbolId];
+        if (frames == null || frames.Count == 0) return frames;
+
+        // The serialized animation lists begin with the normal stopped symbol.
+        // Showing that duplicate base sprite at every wrap makes a continuous
+        // loop look as though it briefly switched off. Exclude it at runtime;
+        // the source list and Inspector configuration remain unchanged.
+        if (frames.Count > 1 && symbolSprites != null && symbolId < symbolSprites.Length && frames[0] == symbolSprites[symbolId])
+            return frames.GetRange(1, frames.Count - 1);
+
+        return frames;
+    }
 
     private void BuildSymbolSpriteArray()
     {
@@ -465,10 +482,20 @@ public class SlotView : MonoBehaviour
         ReelImages reel = reelImagesList[column];
         if (reel == null || reel.images == null || row < 0 || row >= 3) return null;
 
-        // At the stopped reel position (Y = 0), the first three strip images
-        // are the visible top, middle, and bottom result cells. Target those
-        // same objects for result sprites and normal/animation-layer swaps.
-        return row < reel.images.Count ? reel.images[row] : null;
+        // The visible result occupies the three cells in the middle of the
+        // strip when the reel is stopped at Y = 0. The cells before and after
+        // it are only there to keep the strip populated while it is spinning.
+        //
+        // Using images[row] writes the server result into the first/off-screen
+        // cells, so the originally configured middle cells remain visible when
+        // the reel lands. Derive the middle section from the strip length so
+        // this works for both the old 7-cell strips and the current 13-cell
+        // strips.
+        const int visibleRowCount = 3;
+        int visibleStartIndex = Mathf.Max(0, (reel.images.Count - visibleRowCount) / 2);
+        int imageIndex = visibleStartIndex + row;
+
+        return imageIndex < reel.images.Count ? reel.images[imageIndex] : null;
     }
 
     private void SetAnimationColumnVisible(int column, bool visible)
@@ -517,10 +544,10 @@ public class SlotView : MonoBehaviour
                 {
                     animation.onLoopComplete = null;
                     animation.doLoopAnimation = false;
-                    animation.StopAnimation();
                 }
 
                 image.gameObject.SetActive(false);
+                animation?.StopAnimation();
                 SetNormalResultVisible(col, row, true);
             }
         }
@@ -920,7 +947,7 @@ public class SlotView : MonoBehaviour
         Image symbolImage = GetNormalResultImage(column, row);
         if (symbolImage == null) return;
 
-        var animGO = WinBox(winAnimationColumns, column, row);
+        var animGO = GetAnimationObject(column, row);
         if (animGO == null) return;
 
         ImageAnimation imageAnim = animGO.GetComponent<ImageAnimation>();
@@ -977,7 +1004,7 @@ public class SlotView : MonoBehaviour
 
     private IEnumerator PlayTwoPhaseWinLines(List<WinLine> winLines, System.Action onComplete)
     {
-        int rowLimit = (gameManager != null && gameManager.gameConfig != null) ? gameManager.gameConfig.rowCount : 3;
+        const int multipleWinLineLoopCount = 2;
 
         // ==========================================
         // PHASE 1: Show all winning icons at once
@@ -996,28 +1023,44 @@ public class SlotView : MonoBehaviour
 
         Debug.Log($"[PlayTwoPhaseWinLines] Phase 1: Showing all {allWinPositions.Count} winning icons at once for {winLines.Count} win lines");
 
-        // Calculate Phase 1 Total Win Amount
-        double totalWinAmount = 0;
-        foreach (var winLine in winLines)
-        {
-            totalWinAmount += winLine.winAmount;
-        }
-        if (totalWinAmount <= 0 && gameManager != null && gameManager.lastResult != null)
-        {
-            totalWinAmount = gameManager.lastResult.winAmount;
-        }
-
-        // Show Phase 1 Total Win Text with final win value
-        ShowPhase1TotalWin(totalWinAmount);
-
         AudioManager.Instance?.PlayWinLinePhase1Start();
 
-        // Animate all winning symbols and wait for their ImageAnimation loops to complete
-        yield return StartCoroutine(AnimateWinPositions(allWinPositions));
+        // A single win line has nothing to transition to. Keep its symbols
+        // looping until the next spin stops the win-animation coroutine. The
+        // game-completion callback is fired after the first complete loop so
+        // autoplay/free-spin progression is not blocked.
+        if (winLines.Count == 1)
+        {
+            yield return AnimateWinPositions(
+                allWinPositions,
+                1,
+                true,
+                onComplete);
+            yield break;
+        }
 
-        KillWinTweens(false);
+        List<WinLine> displayWinLines = new List<WinLine>();
+        foreach (WinLine winLine in winLines)
+        {
+            if (winLine.positions != null && winLine.positions.Count > 0)
+                displayWinLines.Add(winLine);
+        }
+
+        HashSet<int> firstLinePositions = displayWinLines.Count > 0
+            ? new HashSet<int>(displayWinLines[0].positions)
+            : null;
+
+        // With multiple win lines, first show every winning symbol together
+        // for exactly two complete loops. Positions used by the first individual
+        // line remain active so they do not restart at the phase transition.
+        yield return AnimateWinPositions(
+            allWinPositions,
+            multipleWinLineLoopCount,
+            false,
+            null,
+            firstLinePositions);
+
         HideAllWinLineTexts();
-        HidePhase1TotalWinText();
 
         // Invoke onComplete immediately after Phase 1 so game logic (Free Spins / Autoplay / Win complete) can proceed
         onComplete?.Invoke();
@@ -1030,6 +1073,13 @@ public class SlotView : MonoBehaviour
         bool skipPhase2 = (gameManager != null && (gameManager.isInFreeSpins || gameManager.isAutoPlaying)) || hasSpecialFeature;
         if (skipPhase2)
         {
+            KillWinTweens(false);
+            yield break;
+        }
+
+        if (displayWinLines.Count == 0)
+        {
+            KillWinTweens(false);
             yield break;
         }
 
@@ -1038,38 +1088,48 @@ public class SlotView : MonoBehaviour
         // ==========================================
         while (true)
         {
-            foreach (var winLine in winLines)
+            for (int lineIndex = 0; lineIndex < displayWinLines.Count; lineIndex++)
             {
-                if (winLine.positions == null || winLine.positions.Count == 0) continue;
+                WinLine winLine = displayWinLines[lineIndex];
+                WinLine nextWinLine = displayWinLines[(lineIndex + 1) % displayWinLines.Count];
+                HashSet<int> nextLinePositions = new HashSet<int>(nextWinLine.positions);
 
-                KillWinTweens(false);
                 HideAllWinLineTexts();
 
-                // Show WinLineText on 1st icon of the active win line only if there are multiple win lines
-                if (winLines.Count > 1)
-                {
-                    int firstFlatIndex = winLine.positions[0];
-                    int firstRow = firstFlatIndex / 5;
-                    int firstCol = firstFlatIndex % 5;
-                    ShowWinLineTextOnIcon(firstCol, firstRow, winLine.winAmount);
-                }
+                int firstFlatIndex = winLine.positions[0];
+                int firstRow = firstFlatIndex / 5;
+                int firstCol = firstFlatIndex % 5;
+                ShowWinLineTextOnIcon(firstCol, firstRow, winLine.winAmount);
 
-                // Animate win line symbols and wait for their ImageAnimation loops to complete
-                yield return StartCoroutine(AnimateWinPositions(winLine.positions));
+                // Show each individual win line for exactly two complete loops.
+                // Any positions shared with the next line continue uninterrupted.
+                yield return AnimateWinPositions(
+                    winLine.positions,
+                    multipleWinLineLoopCount,
+                    false,
+                    null,
+                    nextLinePositions);
             }
         }
     }
 
-    private IEnumerator AnimateWinPositions(IEnumerable<int> flatPositions)
+    private IEnumerator AnimateWinPositions(
+        IEnumerable<int> flatPositions,
+        int loopCountTarget,
+        bool continueUntilNextSpin = false,
+        System.Action onInitialLoopsComplete = null,
+        ISet<int> positionsToKeepActive = null)
     {
         if (flatPositions == null) yield break;
 
         int rowLimit = (gameManager != null && gameManager.gameConfig != null) ? gameManager.gameConfig.rowCount : 3;
-        int loopCountTarget = (gameManager != null && (gameManager.isInFreeSpins || gameManager.isAutoPlaying)) ? 1 : winSymbolLoopCount;
+        loopCountTarget = Mathf.Max(1, loopCountTarget);
 
         List<ImageAnimation> activeAnims = new List<ImageAnimation>();
         List<GameObject> activeAnimationObjects = new List<GameObject>();
         List<Vector2Int> activePositions = new List<Vector2Int>();
+        List<int> activeFlatIndices = new List<int>();
+        List<List<ImageAnimation>> activeWinBoxAnimations = new List<List<ImageAnimation>>();
 
         foreach (int flatIndex in flatPositions)
         {
@@ -1078,22 +1138,22 @@ public class SlotView : MonoBehaviour
 
             if (col < 0 || col >= 5 || row < 0 || row >= rowLimit) continue;
 
-            EnableWinBox(col, row);
-
             Image symbolImage = GetNormalResultImage(col, row);
             if (symbolImage == null) continue;
 
-            var animGO = WinBox(winAnimationColumns, col, row);
+            var animGO = GetAnimationObject(col, row);
             if (animGO == null) continue;
 
             ImageAnimation imageAnim = animGO.GetComponent<ImageAnimation>();
             if (imageAnim == null) continue;
 
+            SynchronizeWinBoxLoop(animGO, imageAnim);
+
             if (col >= currentDisplayMatrix.Count || row >= currentDisplayMatrix[col].Count) continue;
             int symbolId = currentDisplayMatrix[col][row];
             if (symbolId < 0 || symbolId >= animationSpriteArrays.Length) continue;
 
-            List<Sprite> animSprites = animationSpriteArrays[symbolId];
+            List<Sprite> animSprites = GetLoopingSymbolFrames(symbolId);
             if (animSprites == null || animSprites.Count == 0) continue;
 
             imageAnim.textureArray = animSprites;
@@ -1104,38 +1164,103 @@ public class SlotView : MonoBehaviour
             activeAnims.Add(imageAnim);
             activeAnimationObjects.Add(animGO);
             activePositions.Add(new Vector2Int(col, row));
+            activeFlatIndices.Add(flatIndex);
+            activeWinBoxAnimations.Add(GetWinBoxAnimations(animGO, imageAnim));
         }
 
-        if (winLineBoxToAnimationDelay > 0)
+        // Activate every position before advancing the shared clock so all
+        // symbols and WinBoxes begin on the same rendered frame.
+        for (int index = 0; index < activeAnims.Count; index++)
         {
-            yield return new WaitForSeconds(winLineBoxToAnimationDelay);
-        }
-
-        // Swap every winning normal symbol to its animation overlay in one frame.
-        for (int i = 0; i < activeAnims.Count; i++)
-        {
-            Vector2Int position = activePositions[i];
+            Vector2Int position = activePositions[index];
             SetNormalResultVisible(position.x, position.y, false);
-            activeAnimationObjects[i].SetActive(true);
+            activeAnimationObjects[index].SetActive(true);
         }
-
-        // Start every configured animation in this same frame. Each animation's
-        // per-frame delay was normalized to the shared loop duration above.
-        foreach (ImageAnimation imageAnim in activeAnims)
-            imageAnim.StartAnimation();
 
         if (activeAnims.Count > 0)
         {
-            yield return new WaitForSeconds(winSymbolLoopDuration * loopCountTarget);
+            for (int index = 0; index < activeAnims.Count; index++)
+            {
+                activeAnims[index].BeginSynchronizedPlayback();
+                foreach (ImageAnimation winBoxAnimation in activeWinBoxAnimations[index])
+                {
+                    winBoxAnimation.onLoopComplete = null;
+                    winBoxAnimation.doLoopAnimation = true;
+                    winBoxAnimation.BeginSynchronizedPlayback();
+                }
+            }
 
-            // End and restore all winning positions together as one synchronized batch.
+            float phaseDuration = winSymbolLoopDuration * loopCountTarget;
+            float winBoxLoopDuration = winSymbolLoopDuration * 2f;
+            float elapsedTime = 0f;
+
+            while (elapsedTime < phaseDuration)
+            {
+                for (int index = 0; index < activeAnims.Count; index++)
+                {
+                    activeAnims[index].SetSynchronizedTime(elapsedTime, winSymbolLoopDuration);
+                    foreach (ImageAnimation winBoxAnimation in activeWinBoxAnimations[index])
+                    {
+                        winBoxAnimation.SetSynchronizedTime(elapsedTime, winBoxLoopDuration);
+                    }
+                }
+
+                yield return null;
+                elapsedTime += Time.deltaTime;
+            }
+
+            // Put every animation on the exact shared boundary in the same frame.
+            for (int index = 0; index < activeAnims.Count; index++)
+            {
+                activeAnims[index].SetSynchronizedTime(phaseDuration, winSymbolLoopDuration);
+                foreach (ImageAnimation winBoxAnimation in activeWinBoxAnimations[index])
+                {
+                    winBoxAnimation.SetSynchronizedTime(phaseDuration, winBoxLoopDuration);
+                }
+            }
+            elapsedTime = phaseDuration;
+
+            onInitialLoopsComplete?.Invoke();
+
+            if (continueUntilNextSpin)
+            {
+                while (true)
+                {
+                    yield return null;
+                    elapsedTime += Time.deltaTime;
+
+                    for (int index = 0; index < activeAnims.Count; index++)
+                    {
+                        activeAnims[index].SetSynchronizedTime(elapsedTime, winSymbolLoopDuration);
+                        foreach (ImageAnimation winBoxAnimation in activeWinBoxAnimations[index])
+                        {
+                            winBoxAnimation.SetSynchronizedTime(elapsedTime, winBoxLoopDuration);
+                        }
+                    }
+                }
+            }
+
+            // Stop the manual clock for every group together. Shared groups stay
+            // visible on frame zero and are picked up by the next line immediately.
+            for (int index = 0; index < activeAnims.Count; index++)
+            {
+                activeAnims[index].EndSynchronizedPlayback();
+                foreach (ImageAnimation winBoxAnimation in activeWinBoxAnimations[index])
+                {
+                    winBoxAnimation.EndSynchronizedPlayback();
+                }
+            }
+
             for (int i = 0; i < activeAnims.Count; i++)
             {
+                if (positionsToKeepActive != null && positionsToKeepActive.Contains(activeFlatIndices[i]))
+                    continue;
+
                 ImageAnimation imageAnim = activeAnims[i];
                 imageAnim.onLoopComplete = null;
                 imageAnim.doLoopAnimation = false;
-                imageAnim.StopAnimation();
                 activeAnimationObjects[i].SetActive(false);
+                imageAnim.StopAnimation();
 
                 Vector2Int position = activePositions[i];
                 SetNormalResultVisible(position.x, position.y, true);
@@ -1143,7 +1268,8 @@ public class SlotView : MonoBehaviour
         }
         else
         {
-            yield return new WaitForSeconds(winSymbolLoopDuration);
+            yield return new WaitForSeconds(winSymbolLoopDuration * loopCountTarget);
+            onInitialLoopsComplete?.Invoke();
         }
     }
 
@@ -1185,25 +1311,6 @@ public class SlotView : MonoBehaviour
         }
     }
 
-    private void ShowPhase1TotalWin(double totalWinAmount)
-    {
-        if (phase1TotalWinText != null)
-        {
-            phase1TotalWinText.text = totalWinAmount.ToString("0.###");
-            AnimateTextScaleAppear(phase1TotalWinText.transform);
-        }
-    }
-
-    private void HidePhase1TotalWinText()
-    {
-        if (phase1TotalWinText != null)
-        {
-            phase1TotalWinText.transform.DOKill();
-            phase1TotalWinText.transform.localScale = Vector3.one;
-            phase1TotalWinText.gameObject.SetActive(false);
-        }
-    }
-
     private void AnimateTextScaleAppear(Transform textTransform, float popScale = 1.2f, float durationUp = 0.15f, float durationDown = 0.10f)
     {
         if (textTransform == null) return;
@@ -1216,25 +1323,6 @@ public class SlotView : MonoBehaviour
         seq.Append(textTransform.DOScale(1.0f, durationDown).SetEase(Ease.InQuad));
         winTweens.Add(seq);
     }
-    private void EnableWinBox(int col, int row)
-    {
-        var go = WinBox(winBoxColumns, col, row);
-        if (go)
-        {
-            go.SetActive(true);
-        }
-        else
-        {
-            Debug.LogError($"[EnableWinBox] WinBox GameObject is NULL at col: {col}, row: {row}");
-        }
-    }
-
-    private void DisableWinBox(int col, int row)
-    {
-        var go = WinBox(winBoxColumns, col, row);
-        if (go) go.SetActive(false);
-    }
-
     private void ResetSymbolScale(int col, int row)
     {
         Image resultImage = GetNormalResultImage(col, row);
@@ -1248,7 +1336,7 @@ public class SlotView : MonoBehaviour
         }
 
         // Also ensure the corresponding animation object is disabled
-        var animGO = WinBox(winAnimationColumns, col, row);
+        var animGO = GetAnimationObject(col, row);
         if (animGO != null)
         {
             ImageAnimation imageAnim = animGO.GetComponent<ImageAnimation>();
@@ -1278,7 +1366,7 @@ public class SlotView : MonoBehaviour
 
 
         // Get the animation GameObject for this position
-        var animGO = WinBox(winAnimationColumns, column, row);
+        var animGO = GetAnimationObject(column, row);
         if (animGO == null)
         {
             Debug.LogError($"[AnimateWinSymbol] Animation GameObject is NULL at col: {column}, row: {row}");
@@ -1368,14 +1456,15 @@ public class SlotView : MonoBehaviour
         }
 
         // Stop all win animations and disable animation GameObjects
-        if (winAnimationColumns != null)
+        if (slotAnimationImages != null)
         {
-            foreach (var col in winAnimationColumns)
+            foreach (ReelImages column in slotAnimationImages)
             {
-                if (col?.rows != null)
+                if (column?.images != null)
                 {
-                    foreach (var animGO in col.rows)
+                    foreach (Image animationImage in column.images)
                     {
+                        GameObject animGO = animationImage != null ? animationImage.gameObject : null;
                         if (animGO != null)
                         {
                             ImageAnimation imageAnim = animGO.GetComponent<ImageAnimation>();
@@ -1389,18 +1478,16 @@ public class SlotView : MonoBehaviour
                                     Color ac = imageAnim.rendererDelegate.color;
                                     imageAnim.rendererDelegate.color = new Color(ac.r, ac.g, ac.b, 1f);
                                 }
-                                imageAnim.StopAnimation();
                             }
                             animGO.SetActive(false);
+                            imageAnim?.StopAnimation();
                         }
                     }
                 }
             }
         }
 
-        DisableColumns(winBoxColumns);
         HideAllWinLineTexts();
-        HidePhase1TotalWinText();
 
         // Restore the normal result cells that may have been hidden while their
         // matching SlotAnimHolder animation was playing.
@@ -1468,12 +1555,4 @@ public class SlotView : MonoBehaviour
 public class ReelImages
 {
     public List<Image> images = new List<Image>(16);
-}
-
-
-[System.Serializable]
-public class ColumnOverlays
-{
-    [Tooltip("Row 0 = top, Row 1, Row 2 = bottom")]
-    public GameObject[] rows = new GameObject[3];
 }

@@ -15,7 +15,6 @@ public class UIManager : MonoBehaviour
 
     [Header("Loading & Intro")]
     [SerializeField] private GameObject gameScreen;
-    [SerializeField] private GameObject gameLogoObject;
 
 
 
@@ -1141,8 +1140,6 @@ public class UIManager : MonoBehaviour
         initialFreeSpins = spinsAwarded;
         totalFreeSpinsAwarded = spinsAwarded;
         
-        if (gameLogoObject) gameLogoObject.SetActive(false);
-
         UpdateFreeSpinCount(0, spinsAwarded);
         UpdateWinDisplay(0);
         gameManager.StartFirstFreeSpin();
@@ -1172,7 +1169,6 @@ public class UIManager : MonoBehaviour
 
         // 2. Setup main slot UI state behind back film
         if (freeSpinCountContainer) freeSpinCountContainer.SetActive(false);
-        if (gameLogoObject) gameLogoObject.SetActive(true);
 
         // Reset win display for base game after free spins end
         UpdateWinDisplay(0);
@@ -1558,7 +1554,6 @@ public class UIManager : MonoBehaviour
                     initialFreeSpins = resultData.freeGamesAwarded;
                     totalFreeSpinsAwarded = resultData.freeGamesAwarded;
                     
-                    if (gameLogoObject) gameLogoObject.SetActive(false);
                     UpdateFreeSpinCount(0, resultData.freeGamesAwarded);
                     UpdateWinDisplay(0);
                     

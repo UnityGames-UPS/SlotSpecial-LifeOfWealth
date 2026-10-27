@@ -12,6 +12,7 @@ public class InitData
     public ServerGameData gameData;
     public ServerUIData uiData;
     public ServerPlayer player;
+    public JackpotData jackpotData;
 }
 
 [Serializable]
