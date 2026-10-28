@@ -10,6 +10,13 @@ public class SlotView : MonoBehaviour
     [Header("References")]
     [SerializeField] private GameManager gameManager;
 
+    [Header("Win Line Presentation")]
+    [Tooltip("Line1 through Line15, in server lineIndex order (0 through 14).")]
+    [SerializeField] private List<GameObject> winLineObjects = new List<GameObject>(15);
+    [SerializeField] private TMPro.TMP_Text winAmountTopText;
+    [SerializeField] private TMPro.TMP_Text winAmountMidText;
+    [SerializeField] private TMPro.TMP_Text winAmountBottomText;
+
     [Header("Symbol Sprites - Assign by Name")]
     [FormerlySerializedAs("spriteLantern"), SerializeField] private Sprite symbolWildSprite;       // ID: 0
     [FormerlySerializedAs("spriteHammer"), SerializeField] private Sprite symbolScatterSprite;    // ID: 1
@@ -143,6 +150,7 @@ public class SlotView : MonoBehaviour
             BuildSymbolSpriteArray();
         }
         DisableAllOverlays();
+        HideWinLinePresentation();
         SetupSymbolButtons();
     }
 
@@ -992,6 +1000,10 @@ public class SlotView : MonoBehaviour
 
     internal void ShowWinLineAnimation(List<WinLine> winLines, System.Action onComplete)
     {
+        // The first phase is the total-win presentation, so line artwork and
+        // individual line amounts must start hidden.
+        HideWinLinePresentation();
+
         if (winLines == null || winLines.Count == 0)
         {
             onComplete?.Invoke();
@@ -1025,17 +1037,28 @@ public class SlotView : MonoBehaviour
 
         AudioManager.Instance?.PlayWinLinePhase1Start();
 
-        // A single win line has nothing to transition to. Keep its symbols
-        // looping until the next spin stops the win-animation coroutine. The
-        // game-completion callback is fired after the first complete loop so
-        // autoplay/free-spin progression is not blocked.
-        if (winLines.Count == 1)
+        // A free-spin trigger has another screen waiting after the win display.
+        // Keep this animation finite, clean it up before invoking the callback,
+        // and never enter the ordinary repeating win-line presentation.
+        bool hasFreeSpinTrigger = gameManager != null &&
+            gameManager.lastResult != null &&
+            gameManager.lastResult.freeSpinData != null &&
+            gameManager.lastResult.freeSpinData.isTriggered;
+
+        if (hasFreeSpinTrigger)
         {
             yield return AnimateWinPositions(
                 allWinPositions,
                 1,
-                true,
-                onComplete);
+                false,
+                null);
+
+            HideAllWinLineTexts();
+            KillWinTweens(false);
+            winAnimationCoroutine = null;
+
+            Debug.Log("[PlayTwoPhaseWinLines] Free-spin trigger animation complete. Continuing game flow.");
+            onComplete?.Invoke();
             yield break;
         }
 
@@ -1061,6 +1084,7 @@ public class SlotView : MonoBehaviour
             firstLinePositions);
 
         HideAllWinLineTexts();
+        HideWinLinePresentation();
 
         // Invoke onComplete immediately after Phase 1 so game logic (Free Spins / Autoplay / Win complete) can proceed
         onComplete?.Invoke();
@@ -1095,11 +1119,7 @@ public class SlotView : MonoBehaviour
                 HashSet<int> nextLinePositions = new HashSet<int>(nextWinLine.positions);
 
                 HideAllWinLineTexts();
-
-                int firstFlatIndex = winLine.positions[0];
-                int firstRow = firstFlatIndex / 5;
-                int firstCol = firstFlatIndex % 5;
-                ShowWinLineTextOnIcon(firstCol, firstRow, winLine.winAmount);
+                ShowWinLinePresentation(winLine);
 
                 // Show each individual win line for exactly two complete loops.
                 // Any positions shared with the next line continue uninterrupted.
@@ -1311,6 +1331,80 @@ public class SlotView : MonoBehaviour
         }
     }
 
+    private void ShowWinLinePresentation(WinLine winLine)
+    {
+        HideWinLinePresentation();
+        if (winLine == null || winLine.positions == null || winLine.positions.Count == 0) return;
+
+        // Server lineIndex is zero-based, matching Line1 through Line15 in this list.
+        int lineIndex = winLine.lineId;
+        if (lineIndex >= 0 && lineIndex < winLineObjects.Count && winLineObjects[lineIndex] != null)
+        {
+            winLineObjects[lineIndex].SetActive(true);
+        }
+
+        int amountRow = GetWinAmountRow(winLine);
+        TMPro.TMP_Text amountText = amountRow switch
+        {
+            0 => winAmountTopText,
+            1 => winAmountMidText,
+            _ => winAmountBottomText
+        };
+
+        if (amountText != null)
+        {
+            amountText.text = winLine.winAmount.ToString(
+                "0.###",
+                System.Globalization.CultureInfo.InvariantCulture);
+            amountText.gameObject.SetActive(true);
+        }
+    }
+
+    private int GetWinAmountRow(WinLine winLine)
+    {
+        int centerReelIndex = gameManager != null && gameManager.gameConfig != null
+            ? gameManager.gameConfig.reelCount / 2
+            : 2;
+
+        // Use the complete configured payline rather than only the winning
+        // symbols. A partial win can stop before the centre reel, while its
+        // line still crosses Top, Mid, or Bottom there.
+        List<List<int>> paylines = gameManager?.gameConfig?.paylines;
+        if (paylines != null &&
+            winLine.lineId >= 0 && winLine.lineId < paylines.Count &&
+            paylines[winLine.lineId] != null &&
+            centerReelIndex >= 0 && centerReelIndex < paylines[winLine.lineId].Count)
+        {
+            return Mathf.Clamp(paylines[winLine.lineId][centerReelIndex], 0, 2);
+        }
+
+        // Safe fallback for incomplete configuration data.
+        foreach (int flatIndex in winLine.positions)
+        {
+            if (flatIndex % 5 == centerReelIndex)
+            {
+                return Mathf.Clamp(flatIndex / 5, 0, 2);
+            }
+        }
+
+        return Mathf.Clamp(winLine.positions[0] / 5, 0, 2);
+    }
+
+    private void HideWinLinePresentation()
+    {
+        if (winLineObjects != null)
+        {
+            foreach (GameObject lineObject in winLineObjects)
+            {
+                if (lineObject != null) lineObject.SetActive(false);
+            }
+        }
+
+        if (winAmountTopText) winAmountTopText.gameObject.SetActive(false);
+        if (winAmountMidText) winAmountMidText.gameObject.SetActive(false);
+        if (winAmountBottomText) winAmountBottomText.gameObject.SetActive(false);
+    }
+
     private void AnimateTextScaleAppear(Transform textTransform, float popScale = 1.2f, float durationUp = 0.15f, float durationDown = 0.10f)
     {
         if (textTransform == null) return;
@@ -1488,6 +1582,7 @@ public class SlotView : MonoBehaviour
         }
 
         HideAllWinLineTexts();
+        HideWinLinePresentation();
 
         // Restore the normal result cells that may have been hidden while their
         // matching SlotAnimHolder animation was playing.

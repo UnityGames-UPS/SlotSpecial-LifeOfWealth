@@ -275,8 +275,11 @@ public class GameManager : MonoBehaviour
         {
             double totalPay = GetTotalPay();
             double multiplier = totalPay > 0 ? (lastResult.winAmount / totalPay) : 0;
+            bool isFreeSpinTrigger = lastResult.freeSpinData != null && lastResult.freeSpinData.isTriggered;
 
-            if (multiplier >= bigWinMultiplierThreshold)
+            // A mid-spin BigWin pauses normal play, autoplay, and individual
+            // free games. Free-game trigger/End presentation remains separate.
+            if (multiplier >= bigWinMultiplierThreshold && !isFreeSpinTrigger)
             {
                 uiManager.DisableControlsDuringWinAnimation();
                 currentState = GameState.Idle;
@@ -334,9 +337,10 @@ public class GameManager : MonoBehaviour
         {
             double totalPay = GetTotalPay();
             double multiplier = totalPay > 0 ? (lastResult.winAmount / totalPay) : 0;
+            bool isFreeSpinTrigger = lastResult.freeSpinData != null && lastResult.freeSpinData.isTriggered;
 
             // Only update UI here if it wasn't already updated in OnReelsStoppedComplete (multiplier < bigWinMultiplierThreshold)
-            if (multiplier >= bigWinMultiplierThreshold)
+            if (multiplier >= bigWinMultiplierThreshold && !isFreeSpinTrigger)
             {
                 uiManager.OnSpinStopping(lastResult);
             }
@@ -423,7 +427,12 @@ public class GameManager : MonoBehaviour
 
         if (isInFreeSpins)
         {
-            if (result.freeSpinData != null && result.freeSpinData.isTriggered && result.freeSpinData.spinsAwarded > 0)
+            bool isRetrigger =
+                result.freeSpinData != null &&
+                result.freeSpinData.isTriggered &&
+                result.freeSpinData.spinsAwarded > 0;
+
+            if (isRetrigger)
             {
                 totalFreeSpinsAwarded += result.freeSpinData.spinsAwarded;
             }
@@ -431,7 +440,13 @@ public class GameManager : MonoBehaviour
             freeSpinsRemaining = result.serverSpinsRemaining;
             freeSpinsUsed = Mathf.Max(0, totalFreeSpinsAwarded - freeSpinsRemaining);
             totalFreeSpinWin += result.winAmount;
-            uiManager.UpdateFreeSpinCount(freeSpinsUsed, totalFreeSpinsAwarded);
+
+            // Keep the old remaining value on screen while the retrigger Start
+            // panel is waiting. UI applies the server's new total after Start.
+            if (!isRetrigger)
+            {
+                uiManager.UpdateFreeSpinCount(freeSpinsUsed, totalFreeSpinsAwarded);
+            }
         }
     }
 
@@ -440,6 +455,15 @@ public class GameManager : MonoBehaviour
         playerData = lastResult.playerData;
 
         uiManager.OnSpinCompleted(lastResult);
+
+        bool isFreeSpinRetrigger =
+            isInFreeSpins &&
+            lastResult.freeSpinData != null &&
+            lastResult.freeSpinData.isTriggered &&
+            lastResult.freeSpinData.spinsAwarded > 0;
+        int retriggeredSpins = isFreeSpinRetrigger
+            ? lastResult.freeSpinData.spinsAwarded
+            : 0;
 
         int serverSpinsRemaining = lastResult.serverSpinsRemaining;
         if (isInFreeSpins && freeSpinsRemaining != serverSpinsRemaining)
@@ -451,6 +475,18 @@ public class GameManager : MonoBehaviour
         {
             StartFreeSpins(lastResult.freeSpinData.spinsAwarded);
             lastResult = null;
+            return;
+        }
+
+        if (isFreeSpinRetrigger)
+        {
+            // The server has already included the newly awarded games in the
+            // remaining count. Pause here so Start can be shown again without
+            // resetting the accumulated feature win or session state.
+            waitingForFreeSpinStart = true;
+            currentState = GameState.Idle;
+            lastResult = null;
+            uiManager.OnFreeSpinsRetriggered(retriggeredSpins);
             return;
         }
 
@@ -606,7 +642,10 @@ public class GameManager : MonoBehaviour
             savedAutoPlayRemainingRounds = (prevTotal != -1) ? (prevRemaining - 1) : -1;
         }
 
-        uiManager.OnFreeSpinsStarted(spins);
+        double triggeringGameWin = lastResult != null
+            ? System.Math.Max(0, lastResult.winAmount)
+            : 0;
+        uiManager.OnFreeSpinsStarted(spins, triggeringGameWin);
 
         currentState = GameState.Idle;
     }
@@ -615,6 +654,15 @@ public class GameManager : MonoBehaviour
     {
         waitingForFreeSpinStart = false;
 
+        StartCoroutine(DelayBeforeFirstFreeSpin());
+    }
+
+    internal void ContinueFreeSpinsAfterRetrigger()
+    {
+        if (!isInFreeSpins || !waitingForFreeSpinStart) return;
+
+        waitingForFreeSpinStart = false;
+        currentState = GameState.Idle;
         StartCoroutine(DelayBeforeFirstFreeSpin());
     }
 

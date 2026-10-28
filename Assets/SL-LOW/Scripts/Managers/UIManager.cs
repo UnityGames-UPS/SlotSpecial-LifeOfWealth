@@ -39,7 +39,6 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject goodLuckObjectPortrait;
 
     [Header("Bonus Wheel")]
-    [SerializeField] private WheelSpinController mainWheel;
     [SerializeField] private GameObject wheelScreen;
     [SerializeField] private Button wheelSpinButton;
     [SerializeField] private Button wheelSpinButton2;
@@ -57,10 +56,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Button wheelSpinButtonPortrait2;
     [SerializeField] private Transform wheelTitleTransformPortrait;
     
-    [Header("Money Bag Bonus")]
-    [SerializeField] private MoneyBagController moneyBagController;
-
     [Header("Universal Win Popup")]
+    [SerializeField] private GameObject bigWinObject;
     [SerializeField] private GameObject universalWinPopup;
     [SerializeField] private RectTransform universalWinPopupRect;
     [SerializeField] private GameObject uwpCongratulationsTitle;
@@ -174,9 +171,22 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text ruleSymbol8Text;
     [SerializeField] private TMP_Text ruleSymbol9Text;
 
-    [Header("Free Spin Count Display - Game Screen")]
-    [SerializeField] private GameObject freeSpinCountContainer;
-    [SerializeField] private TMP_Text remainingFreeSpinsText;
+    [Header("Free Games Feature Panel")]
+    [SerializeField] private GameObject freeGamesFeaturePanel;
+    [SerializeField] private GameObject freeGamesStartPanel;
+    [SerializeField] private GameObject freeGamesMidPanel;
+    [SerializeField] private GameObject freeGamesEndPanel;
+    [SerializeField] private GameObject landscapeGreyFilm;
+    [SerializeField] private Button freeGamesStartButtonLandscape;
+    [SerializeField] private Button freeGamesStartButtonPortrait;
+    [SerializeField] private Button freeGamesTakeButtonLandscape;
+    [SerializeField] private Button freeGamesTakeButtonPortrait;
+    [SerializeField] private TMP_Text freeGamesRemainingSpriteText;
+    [SerializeField] private TMP_Text freeGamesGameWinSpriteText;
+    [SerializeField] private TMP_Text freeGamesFeatureWinSpriteText;
+    [SerializeField] private TMP_Text freeGamesTotalWinSpriteText;
+    [SerializeField] private float freeGamesAmountCountDuration = 1.5f;
+    [SerializeField] private float freeGamesStartDisplayDuration = 3f;
 
     [Header("Ping Display")]
     [SerializeField] private TMP_Text pingText;
@@ -211,6 +221,18 @@ public class UIManager : MonoBehaviour
 
     private int initialFreeSpins = 0;
 
+    private Tween freeGamesAmountTween;
+    private Coroutine freeGamesStartAnnouncementCoroutine;
+    private int pendingFreeSpins;
+    private double freeGamesTriggerWin;
+    private double freeGamesFeatureWin;
+    private double freeGamesHeldBalance;
+    private bool isFreeGamesFeatureActive;
+    private bool isFreeGamesEndScreenActive;
+    private bool isFreeGamesAmountAnimationComplete;
+    private bool isFreeGamesRetriggerStart;
+    private bool isFreeGamesAwaitingStartButton;
+
     // Optimistic balance: the locally-deducted balance shown while the spin is in flight
     private double optimisticBalance = 0;
     private bool hasOptimisticBalance = false;
@@ -224,9 +246,13 @@ public class UIManager : MonoBehaviour
     private bool isPageAnimating;
     [Header("UI State")]
     private double currentWinDisplayValue = 0;
+    private int currentWinDecimalPlaces = 0;
     private bool isSpecialWinActive = false;
     public bool IsSpecialWinActive => isSpecialWinActive;
     public System.Action OnSpecialWinComplete;
+    private ImageAnimation activeBigWinAnimation;
+    private System.Action<int> bigWinLoopCompleteHandler;
+    private System.Action bigWinCompletionCallback;
 
     // Universal Win Popup state
     private System.Action universalWinPopupCallback;
@@ -257,6 +283,7 @@ public class UIManager : MonoBehaviour
 
     private void Start()
     {
+        InitializeFreeGamesFeaturePanel();
         SetupButtons();
         SetupAutoPlayPanel();
         SetupSettingsPanel();
@@ -284,6 +311,7 @@ public class UIManager : MonoBehaviour
     private void HandleOrientationChangedForWheelButtons(OrientationChange.OrientationMode mode, int width, int height)
     {
         UpdateNewWheelSpinButtonsVisibility();
+        UpdateFreeGamesActionButtonsVisibility();
     }
 
     private void UpdateNewWheelSpinButtonsVisibility()
@@ -295,6 +323,36 @@ public class UIManager : MonoBehaviour
 
         if (wheelSpinButton2) wheelSpinButton2.gameObject.SetActive(!isPortraitMode);
         if (wheelSpinButtonPortrait2) wheelSpinButtonPortrait2.gameObject.SetActive(isPortraitMode);
+    }
+
+    private bool IsPortraitMode()
+    {
+        var orientationController = Object.FindFirstObjectByType<OrientationChange>();
+        return orientationController != null &&
+            orientationController.CurrentMode == OrientationChange.OrientationMode.MobilePortrait;
+    }
+
+    private void UpdateFreeGamesActionButtonsVisibility()
+    {
+        if (!isFreeGamesFeatureActive) return;
+
+        bool isPortraitMode = IsPortraitMode();
+        bool showStart =
+            !isFreeGamesEndScreenActive &&
+            isFreeGamesAwaitingStartButton &&
+            pendingFreeSpins > 0;
+        bool showTake = isFreeGamesEndScreenActive;
+
+        if (freeGamesStartButtonLandscape) freeGamesStartButtonLandscape.gameObject.SetActive(showStart && !isPortraitMode);
+        if (freeGamesStartButtonPortrait) freeGamesStartButtonPortrait.gameObject.SetActive(showStart && isPortraitMode);
+        SetButtonInteractable(freeGamesStartButtonLandscape, freeGamesStartButtonPortrait, showStart);
+
+        if (freeGamesTakeButtonLandscape) freeGamesTakeButtonLandscape.gameObject.SetActive(showTake && !isPortraitMode);
+        if (freeGamesTakeButtonPortrait) freeGamesTakeButtonPortrait.gameObject.SetActive(showTake && isPortraitMode);
+        SetButtonInteractable(
+            freeGamesTakeButtonLandscape,
+            freeGamesTakeButtonPortrait,
+            showTake && isFreeGamesAmountAnimationComplete);
     }
 
     private void InitializeUI()
@@ -314,9 +372,10 @@ public class UIManager : MonoBehaviour
         if (guidePanel) guidePanel.SetActive(false);
         if (uwpWinTween != null) { uwpWinTween.Kill(); uwpWinTween = null; }
         if (starFountain != null) starFountain.StopStarBurst();
+        if (bigWinObject) bigWinObject.SetActive(false);
         if (universalWinPopup) universalWinPopup.SetActive(false);
 
-        if (freeSpinCountContainer) freeSpinCountContainer.SetActive(false);
+        SetFreeGamesPanelState(false, false, false, false);
         StopWheelBonusEffects();
         if (wheelScreen) wheelScreen.SetActive(false);
         SetButtonActive(wheelSpinButton, wheelSpinButtonPortrait, false);
@@ -460,6 +519,13 @@ public class UIManager : MonoBehaviour
         // Take button for universal win popup
         if (uwpTakeButton) uwpTakeButton.onClick.AddListener(OnUniversalWinTakeButtonClicked);
         if (uwpTakeButtonPortrait) uwpTakeButtonPortrait.onClick.AddListener(OnUniversalWinTakeButtonClicked);
+
+        // These existing wheel Start buttons are also the orientation-specific
+        // Start controls for the Free Games feature.
+        if (freeGamesStartButtonLandscape) freeGamesStartButtonLandscape.onClick.AddListener(OnWheelOrFreeGamesStartButtonClicked);
+        if (freeGamesStartButtonPortrait) freeGamesStartButtonPortrait.onClick.AddListener(OnWheelOrFreeGamesStartButtonClicked);
+        if (wheelSpinButton2) wheelSpinButton2.onClick.AddListener(OnWheelSpinClicked);
+        if (wheelSpinButtonPortrait2) wheelSpinButtonPortrait2.onClick.AddListener(OnWheelSpinClicked);
 
         // Speed buttons setup (Three-layer Toggle)
         if (normalSpeedButton) normalSpeedButton.onClick.AddListener(() => { AudioManager.Instance?.PlayButton(); SetSpeedMode(SpinSpeed.Turbo); });
@@ -612,22 +678,26 @@ public class UIManager : MonoBehaviour
         UpdateBalanceDisplay();
         if (result != null)
         {
-            double displayWin = (gameManager != null && gameManager.isInFreeSpins)
-                ? gameManager.CurrentFreeSpinWin
-                : result.winAmount;
-            UpdateWinDisplay(displayWin);
+            if (gameManager != null && gameManager.isInFreeSpins)
+            {
+                // Free Games WIN is cumulative. A losing spin keeps the existing
+                // amount, while a win counts up from the previous total.
+                if (result.winAmount > 0)
+                {
+                    AnimateWinUpdate(GetRunningFreeGamesWin());
+                }
+            }
+            else
+            {
+                AnimateWinUpdate(result.winAmount);
+            }
         }
     }
 
     internal void OnSpinCompleted(SpinResult result = null)
     {
-        if (result != null)
-        {
-            double displayWin = (gameManager != null && gameManager.isInFreeSpins)
-                ? gameManager.CurrentFreeSpinWin
-                : result.winAmount;
-            UpdateWinDisplay(displayWin);
-        }
+        // OnSpinStopping owns the bottom WIN count-up for every spin. Do not
+        // snap that tween to its final value when this event follows it.
         UpdateBalanceDisplay();
 
         if (gameManager.isAutoPlaying)
@@ -649,8 +719,59 @@ public class UIManager : MonoBehaviour
 
     internal void TriggerBigWinPopup(SpinResult result, System.Action onComplete = null)
     {
-        double winAmount = (result != null) ? result.winAmount : 0;
-        ShowUniversalWinPopup(WinPopupType.BigWin, winAmount, 0, onComplete);
+        ClearMidSpinBigWinState(false);
+
+        if (bigWinObject == null)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        activeBigWinAnimation = bigWinObject.GetComponent<ImageAnimation>();
+        if (activeBigWinAnimation == null || !activeBigWinAnimation.HasAnimationFrames())
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        isSpecialWinActive = true;
+        bigWinCompletionCallback = onComplete;
+        bigWinLoopCompleteHandler = completedLoops =>
+        {
+            if (completedLoops >= 2)
+            {
+                ClearMidSpinBigWinState(true);
+            }
+        };
+        activeBigWinAnimation.onLoopComplete += bigWinLoopCompleteHandler;
+
+        // Toggling restarts the sprite animation from frame zero. The game flow
+        // remains paused until ImageAnimation reports that two loops completed.
+        bigWinObject.SetActive(false);
+        bigWinObject.SetActive(true);
+    }
+
+    private void ClearMidSpinBigWinState(bool invokeCompletion)
+    {
+        if (activeBigWinAnimation != null && bigWinLoopCompleteHandler != null)
+        {
+            activeBigWinAnimation.onLoopComplete -= bigWinLoopCompleteHandler;
+        }
+
+        activeBigWinAnimation = null;
+        bigWinLoopCompleteHandler = null;
+
+        System.Action callback = bigWinCompletionCallback;
+        bigWinCompletionCallback = null;
+
+        if (bigWinObject != null) bigWinObject.SetActive(false);
+        isSpecialWinActive = false;
+
+        if (invokeCompletion)
+        {
+            EnableControlsAfterWinAnimation();
+            callback?.Invoke();
+        }
     }
 
     internal void DisableControlsDuringWinAnimation()
@@ -721,6 +842,12 @@ public class UIManager : MonoBehaviour
 
     internal void DisableSpinButtonDuringStop()
     {
+        if (gameManager != null && gameManager.isInFreeSpins)
+        {
+            SetSpinStopButtonStates(isSpinningState: false, isInteractable: false);
+            return;
+        }
+
         if (gameManager.isAutoPlaying)
         {
             SetButtonActive(spinButton, spinButtonPortrait, false);
@@ -739,6 +866,17 @@ public class UIManager : MonoBehaviour
 
     internal void SetSpinStopButtonStates(bool isSpinningState, bool isInteractable)
     {
+        // Free games are automatic. Keep the familiar Spin button visible as a
+        // status indicator, but never allow the player to start/stop a free spin.
+        if (gameManager != null && gameManager.isInFreeSpins)
+        {
+            SetButtonActive(autoSpinStopButton, autoSpinStopButtonPortrait, false);
+            SetButtonActive(stopButton, stopButtonPortrait, false);
+            SetButtonActive(spinButton, spinButtonPortrait, true);
+            SetButtonInteractable(spinButton, spinButtonPortrait, false);
+            return;
+        }
+
         if (gameManager.isAutoPlaying)
         {
             SetButtonActive(spinButton, spinButtonPortrait, false);
@@ -794,6 +932,8 @@ public class UIManager : MonoBehaviour
 
     public void OnSpinButtonHeld()
     {
+        if (isFreeGamesFeatureActive) return;
+
         if (gameManager.currentState == GameState.Idle && !gameManager.isAutoPlaying)
         {
             AudioManager.Instance?.PlayButton();
@@ -1121,17 +1261,178 @@ public class UIManager : MonoBehaviour
 
     #region Free Spins Flow
 
-    internal void OnFreeSpinsStarted(int spins)
+    private void InitializeFreeGamesFeaturePanel()
     {
-        OnFreeSpinsTriggered(spins);
+        bool hasAllReferences =
+            freeGamesFeaturePanel != null &&
+            freeGamesStartPanel != null &&
+            freeGamesMidPanel != null &&
+            freeGamesEndPanel != null &&
+            landscapeGreyFilm != null &&
+            freeGamesStartButtonLandscape != null &&
+            freeGamesStartButtonPortrait != null &&
+            freeGamesTakeButtonLandscape != null &&
+            freeGamesTakeButtonPortrait != null &&
+            freeGamesRemainingSpriteText != null &&
+            freeGamesGameWinSpriteText != null &&
+            freeGamesFeatureWinSpriteText != null &&
+            freeGamesTotalWinSpriteText != null;
+
+        if (!hasAllReferences)
+        {
+            Debug.LogError("One or more explicit Free Games UI references are missing. Falling back to the old free-spin UI.");
+            freeGamesFeaturePanel = null;
+        }
     }
 
-    internal void OnFreeSpinsTriggered(int spinsAwarded)
+    private void SetFreeGamesPanelState(bool rootActive, bool startActive, bool midActive, bool endActive)
     {
-        ShowUniversalWinPopup(WinPopupType.FreeSpinTrigger, 0, spinsAwarded, () =>
+        if (freeGamesFeaturePanel) freeGamesFeaturePanel.SetActive(rootActive);
+        if (freeGamesStartPanel) freeGamesStartPanel.SetActive(startActive);
+        if (freeGamesMidPanel) freeGamesMidPanel.SetActive(midActive);
+        if (freeGamesEndPanel) freeGamesEndPanel.SetActive(endActive);
+        if (landscapeGreyFilm) landscapeGreyFilm.SetActive(rootActive && (startActive || endActive));
+    }
+
+    internal void OnFreeSpinsStarted(int spins, double triggeringGameWin)
+    {
+        OnFreeSpinsTriggered(spins, triggeringGameWin);
+    }
+
+    internal void OnFreeSpinsTriggered(int spinsAwarded, double triggeringGameWin = 0)
+    {
+        if (freeGamesFeaturePanel == null)
         {
-            StartFreeSpinsSequence(spinsAwarded);
-        });
+            ShowUniversalWinPopup(WinPopupType.FreeSpinTrigger, 0, spinsAwarded, () =>
+            {
+                StartFreeSpinsSequence(spinsAwarded);
+            });
+            return;
+        }
+
+        pendingFreeSpins = spinsAwarded;
+        totalFreeSpinWin = 0;
+        freeGamesTriggerWin = System.Math.Max(0, triggeringGameWin);
+        freeGamesFeatureWin = 0;
+        freeGamesHeldBalance = gameManager != null && gameManager.playerData != null
+            ? gameManager.playerData.balance
+            : 0;
+        isFreeGamesFeatureActive = true;
+        isFreeGamesEndScreenActive = false;
+        isFreeGamesAmountAnimationComplete = false;
+        isFreeGamesRetriggerStart = false;
+        isFreeGamesAwaitingStartButton = false;
+
+        if (bigWinObject) bigWinObject.SetActive(false);
+
+        if (freeGamesAmountTween != null)
+        {
+            freeGamesAmountTween.Kill();
+            freeGamesAmountTween = null;
+        }
+
+        SetFreeGamesPanelState(true, true, false, false);
+        Debug.Log($"[FreeGames] Showing Start panel with {spinsAwarded} awarded spins.");
+
+        // During the three-second announcement, keep the familiar Spin visible
+        // as a disabled status button. It is replaced by Start when Mid appears.
+        SetSpinStopButtonStates(isSpinningState: false, isInteractable: false);
+        SetButtonActive(wheelSpinButton2, wheelSpinButtonPortrait2, false);
+        UpdateFreeGamesActionButtonsVisibility();
+
+        UpdateFreeGamesRemainingSprite(spinsAwarded);
+        UpdateBalanceDisplay();
+        BeginFreeGamesStartAnnouncement();
+    }
+
+    internal void OnFreeSpinsRetriggered(int spinsAwarded)
+    {
+        if (freeGamesFeaturePanel == null)
+        {
+            ShowUniversalWinPopup(WinPopupType.FreeSpinTrigger, 0, spinsAwarded, () =>
+            {
+                gameManager.ContinueFreeSpinsAfterRetrigger();
+            });
+            return;
+        }
+
+        pendingFreeSpins = spinsAwarded;
+        totalFreeSpinsAwarded += spinsAwarded;
+        isFreeGamesRetriggerStart = true;
+        isFreeGamesEndScreenActive = false;
+        isFreeGamesAwaitingStartButton = false;
+
+        // Preserve the held balance, cumulative WIN, feature awards, and all
+        // previously played free-game totals. Only switch the visible state.
+        SetFreeGamesPanelState(true, true, false, false);
+        Debug.Log($"[FreeGames] Retriggered {spinsAwarded} more games. Showing Start panel again.");
+
+        // Retriggers use the same disabled Spin during their announcement.
+        SetSpinStopButtonStates(isSpinningState: false, isInteractable: false);
+        SetButtonActive(wheelSpinButton2, wheelSpinButtonPortrait2, false);
+        UpdateFreeGamesActionButtonsVisibility();
+
+        // Do not reveal the server's increased remaining count yet. It is
+        // applied by ContinueFreeSpinsSequence after the player presses Start.
+        UpdateBalanceDisplay();
+        BeginFreeGamesStartAnnouncement();
+    }
+
+    private void BeginFreeGamesStartAnnouncement()
+    {
+        if (freeGamesStartAnnouncementCoroutine != null)
+        {
+            StopCoroutine(freeGamesStartAnnouncementCoroutine);
+        }
+
+        freeGamesStartAnnouncementCoroutine = StartCoroutine(FreeGamesStartAnnouncementSequence());
+    }
+
+    private IEnumerator FreeGamesStartAnnouncementSequence()
+    {
+        yield return new WaitForSeconds(Mathf.Max(0f, freeGamesStartDisplayDuration));
+        freeGamesStartAnnouncementCoroutine = null;
+
+        if (!isFreeGamesFeatureActive || isFreeGamesEndScreenActive || pendingFreeSpins <= 0)
+        {
+            yield break;
+        }
+
+        // Start is a timed announcement. Mid is then revealed while the bottom
+        // Spin control is replaced by the orientation-specific Start button.
+        SetFreeGamesPanelState(true, false, true, false);
+        isFreeGamesAwaitingStartButton = true;
+        SetButtonActive(spinButton, spinButtonPortrait, false);
+        SetButtonActive(stopButton, stopButtonPortrait, false);
+        SetButtonActive(autoSpinStopButton, autoSpinStopButtonPortrait, false);
+        UpdateFreeGamesActionButtonsVisibility();
+        Debug.Log("[FreeGames] Start announcement complete. Showing Mid and waiting for Start button.");
+    }
+
+    private void OnFreeGamesStartButtonClicked()
+    {
+        if (!isFreeGamesFeatureActive ||
+            isFreeGamesEndScreenActive ||
+            !isFreeGamesAwaitingStartButton ||
+            pendingFreeSpins <= 0) return;
+
+        AudioManager.Instance?.PlayButton();
+        int spinsToStart = pendingFreeSpins;
+        bool resumeAfterRetrigger = isFreeGamesRetriggerStart;
+        pendingFreeSpins = 0;
+        isFreeGamesRetriggerStart = false;
+        isFreeGamesAwaitingStartButton = false;
+        SetButtonActive(freeGamesStartButtonLandscape, freeGamesStartButtonPortrait, false);
+        SetButtonActive(wheelSpinButton2, wheelSpinButtonPortrait2, false);
+
+        if (resumeAfterRetrigger)
+        {
+            ContinueFreeSpinsSequence();
+        }
+        else
+        {
+            StartFreeSpinsSequence(spinsToStart);
+        }
     }
 
     private void StartFreeSpinsSequence(int spinsAwarded)
@@ -1140,9 +1441,28 @@ public class UIManager : MonoBehaviour
         initialFreeSpins = spinsAwarded;
         totalFreeSpinsAwarded = spinsAwarded;
         
+        SetFreeGamesPanelState(true, false, true, false);
+        Debug.Log("[FreeGames] Start pressed. Showing Mid panel and hiding LandscapeGreyFilm.");
         UpdateFreeSpinCount(0, spinsAwarded);
-        UpdateWinDisplay(0);
+        // Keep the triggering spin in the running bottom WIN total. Each free
+        // game will count upward from this amount rather than resetting it.
+        UpdateWinDisplay(freeGamesTriggerWin, GetWinDecimalPlaces(freeGamesTriggerWin));
+
+        // Show Spin as a disabled status indicator while free games run.
+        SetSpinStopButtonStates(isSpinningState: false, isInteractable: false);
         gameManager.StartFirstFreeSpin();
+    }
+
+    private void ContinueFreeSpinsSequence()
+    {
+        SetFreeGamesPanelState(true, false, true, false);
+        Debug.Log("[FreeGames] Retrigger Start pressed. Returning to Mid without resetting the accumulated WIN.");
+        UpdateFreeSpinCount(gameManager.freeSpinsUsed, totalFreeSpinsAwarded);
+
+        // Keep the cumulative bottom-bar WIN exactly where the previous spin
+        // finished and resume automatic games with the normal disabled Spin.
+        SetSpinStopButtonStates(isSpinningState: false, isInteractable: false);
+        gameManager.ContinueFreeSpinsAfterRetrigger();
     }
 
     internal void OnFreeSpinsEnded(double serverTotalRoundWin, int serverTotalSpinsUsed)
@@ -1150,10 +1470,157 @@ public class UIManager : MonoBehaviour
         initialFreeSpins = 0;
         totalFreeSpinsAwarded = 0;
 
-        ShowUniversalWinPopup(WinPopupType.FreeSpinComplete, serverTotalRoundWin, 0, () =>
+        if (freeGamesFeaturePanel == null)
         {
-            StartCoroutine(EndFreeSpinsTransitionSequence());
+            ShowUniversalWinPopup(WinPopupType.FreeSpinComplete, serverTotalRoundWin, 0, () =>
+            {
+                StartCoroutine(EndFreeSpinsTransitionSequence());
+            });
+            return;
+        }
+
+        ShowFreeGamesEndScreen(serverTotalRoundWin);
+    }
+
+    private void ShowFreeGamesEndScreen(double freeSpinWin)
+    {
+        freeSpinWin = System.Math.Max(0, freeSpinWin);
+        isFreeGamesEndScreenActive = true;
+        isFreeGamesAmountAnimationComplete = false;
+        isFreeGamesAwaitingStartButton = false;
+        isSpecialWinActive = true;
+
+        if (freeGamesStartAnnouncementCoroutine != null)
+        {
+            StopCoroutine(freeGamesStartAnnouncementCoroutine);
+            freeGamesStartAnnouncementCoroutine = null;
+        }
+        if (bigWinObject) bigWinObject.SetActive(false);
+        SetFreeGamesPanelState(true, false, false, true);
+        Debug.Log("[FreeGames] Showing End panel with LandscapeGreyFilm.");
+
+        SetButtonActive(spinButton, spinButtonPortrait, false);
+        SetButtonActive(stopButton, stopButtonPortrait, false);
+        SetButtonActive(autoSpinStopButton, autoSpinStopButtonPortrait, false);
+        SetButtonActive(wheelSpinButton2, wheelSpinButtonPortrait2, false);
+
+        // Take is visible immediately so the state is obvious, but it cannot be
+        // pressed until every sprite amount has reached its final value.
+        UpdateFreeGamesActionButtonsVisibility();
+
+        // Game Win belongs to the base-game spin that triggered Free Games.
+        // Feature Win contains everything won during the free-game session.
+        double gameWin = System.Math.Max(0, freeGamesTriggerWin);
+        double featureWin = System.Math.Max(0, freeSpinWin + freeGamesFeatureWin);
+        double totalWin = System.Math.Max(0, gameWin + featureWin);
+        SetFreeGamesEndAmounts(0, 0, 0);
+
+        AudioManager.Instance?.PlayWinObjectBg();
+
+        if (freeGamesAmountTween != null) freeGamesAmountTween.Kill();
+        float amountDuration = Mathf.Max(0.01f, freeGamesAmountCountDuration);
+        Sequence amountSequence = DOTween.Sequence();
+
+        // Count each value separately: Game Win, then Feature Win, then Total.
+        amountSequence.Append(DOVirtual.Float(0f, 1f, amountDuration, progress =>
+        {
+            SetFreeGamesEndAmounts(gameWin * progress, 0, 0);
+        }).SetEase(Ease.OutCubic));
+        amountSequence.Append(DOVirtual.Float(0f, 1f, amountDuration, progress =>
+        {
+            SetFreeGamesEndAmounts(gameWin, featureWin * progress, 0);
+        }).SetEase(Ease.OutCubic));
+        amountSequence.Append(DOVirtual.Float(0f, 1f, amountDuration, progress =>
+        {
+            SetFreeGamesEndAmounts(gameWin, featureWin, totalWin * progress);
+        }).SetEase(Ease.OutCubic));
+        amountSequence.OnComplete(() =>
+        {
+            SetFreeGamesEndAmounts(gameWin, featureWin, totalWin);
+            freeGamesAmountTween = null;
+            isFreeGamesAmountAnimationComplete = true;
+            ShowFreeGamesBigWinTakeStage();
         });
+        freeGamesAmountTween = amountSequence;
+    }
+
+    private void ShowFreeGamesBigWinTakeStage()
+    {
+        // The totals have finished. Remove the End panel and its grey film,
+        // then always show BigWin while Take waits for the player.
+        SetFreeGamesPanelState(false, false, false, false);
+
+        if (bigWinObject != null)
+        {
+            bigWinObject.SetActive(false);
+            bigWinObject.SetActive(true);
+        }
+
+        UpdateFreeGamesActionButtonsVisibility();
+        Debug.Log("[FreeGames] End totals complete. Showing BigWin and enabling Take.");
+    }
+
+    private void SetFreeGamesEndAmounts(double gameWin, double featureWin, double totalWin)
+    {
+        if (freeGamesGameWinSpriteText) freeGamesGameWinSpriteText.text = FormatSpriteAmount(gameWin);
+        if (freeGamesFeatureWinSpriteText) freeGamesFeatureWinSpriteText.text = FormatSpriteAmount(featureWin);
+        if (freeGamesTotalWinSpriteText) freeGamesTotalWinSpriteText.text = FormatSpriteAmount(totalWin);
+    }
+
+    private void OnFreeGamesTakeButtonClicked()
+    {
+        if (!isFreeGamesEndScreenActive) return;
+
+        AudioManager.Instance?.StopWinObjectBg();
+        AudioManager.Instance?.PlayTakeButton();
+        if (freeGamesAmountTween != null)
+        {
+            freeGamesAmountTween.Kill();
+            freeGamesAmountTween = null;
+        }
+        SetButtonInteractable(freeGamesTakeButtonLandscape, freeGamesTakeButtonPortrait, false);
+        SetButtonActive(freeGamesTakeButtonLandscape, freeGamesTakeButtonPortrait, false);
+
+        isFreeGamesEndScreenActive = false;
+        isFreeGamesFeatureActive = false;
+        isFreeGamesAmountAnimationComplete = false;
+        isSpecialWinActive = false;
+        isFreeGamesRetriggerStart = false;
+        isFreeGamesAwaitingStartButton = false;
+        freeGamesTriggerWin = 0;
+        pendingFreeSpins = 0;
+        SetFreeGamesPanelState(false, false, false, false);
+        if (bigWinObject) bigWinObject.SetActive(false);
+
+        // The server has already credited every free-game result. Reveal that
+        // authoritative final balance now instead of adding the win a second time.
+        if (gameManager != null && gameManager.playerData != null)
+        {
+            AnimateBalanceUpdate(gameManager.playerData.balance, freeGamesHeldBalance);
+        }
+
+        FinishFreeSpinsImmediately();
+    }
+
+    private void FinishFreeSpinsImmediately()
+    {
+        // Take closes the feature directly. No black-film transition is needed.
+        if (transitionBackFilm != null)
+        {
+            transitionBackFilm.DOKill();
+            transitionBackFilm.alpha = 0f;
+            transitionBackFilm.gameObject.SetActive(false);
+        }
+
+        UpdateWinDisplay(0);
+        SetSpinStopButtonStates(isSpinningState: false, isInteractable: true);
+        SetButtonInteractable(settingsOpenButton, settingsOpenButtonPortrait, true);
+        SetBetControlsEnabled(true);
+
+        if (gameManager != null && gameManager.ShouldResumeAutoPlay())
+        {
+            gameManager.ResumeAutoPlay();
+        }
     }
 
     private IEnumerator EndFreeSpinsTransitionSequence()
@@ -1168,8 +1635,6 @@ public class UIManager : MonoBehaviour
         }
 
         // 2. Setup main slot UI state behind back film
-        if (freeSpinCountContainer) freeSpinCountContainer.SetActive(false);
-
         // Reset win display for base game after free spins end
         UpdateWinDisplay(0);
 
@@ -1198,8 +1663,49 @@ public class UIManager : MonoBehaviour
             totalFreeSpinsAwarded = totalSpins;
         }
 
-        if (freeSpinCountContainer) freeSpinCountContainer.SetActive(true);
-        if (remainingFreeSpinsText) remainingFreeSpinsText.text = $"FREE GAME  {playedSpins}  OF  {totalFreeSpinsAwarded}";
+        int remaining = gameManager != null && gameManager.isInFreeSpins
+            ? gameManager.freeSpinsRemaining
+            : Mathf.Max(0, totalFreeSpinsAwarded - playedSpins);
+        UpdateFreeGamesRemainingSprite(remaining);
+    }
+
+    private void UpdateFreeGamesRemainingSprite(int remaining)
+    {
+        if (freeGamesRemainingSpriteText)
+        {
+            freeGamesRemainingSpriteText.text = FormatSpriteInteger(Mathf.Max(0, remaining));
+        }
+    }
+
+    private string FormatSpriteInteger(int value)
+    {
+        return FormatSpriteCharacters(Mathf.Max(0, value).ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private string FormatSpriteAmount(double amount)
+    {
+        string fixedAmount = System.Math.Max(0, amount).ToString(
+            "0.00",
+            System.Globalization.CultureInfo.InvariantCulture);
+        return FormatSpriteCharacters(fixedAmount);
+    }
+
+    private string FormatSpriteCharacters(string value)
+    {
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(value.Length * 10);
+        foreach (char character in value)
+        {
+            if (character >= '0' && character <= '9')
+            {
+                builder.Append("<sprite=").Append(character - '0').Append('>');
+            }
+            else if (character == '.')
+            {
+                // NUMBERS 2 uses sprite index 10 for the decimal point.
+                builder.Append("<sprite=10>");
+            }
+        }
+        return builder.ToString();
     }
 
     #endregion
@@ -1308,14 +1814,22 @@ public class UIManager : MonoBehaviour
 
     internal void UpdateBalanceDisplay()
     {
-        SetTMPText(balanceText, balanceTextPortrait, "BALANCE : " + FormatAmount(gameManager.playerData.balance));
+        double balanceToDisplay = isFreeGamesFeatureActive
+            ? freeGamesHeldBalance
+            : gameManager.playerData.balance;
+        SetTMPText(balanceText, balanceTextPortrait, "BALANCE : " + FormatAmount(balanceToDisplay));
     }
 
-    private void UpdateWinDisplay(double amount)
+    private void UpdateWinDisplay(double amount, int? decimalPlaces = null)
     {
+        if (decimalPlaces.HasValue)
+        {
+            currentWinDecimalPlaces = Mathf.Clamp(decimalPlaces.Value, 0, 3);
+        }
+
         currentWinDisplayValue = amount;
-        if (winAmountText) winAmountText.text = FormatAmount(amount);
-        if (winAmountTextPortrait) winAmountTextPortrait.text = "WIN " + FormatAmount(amount);
+        if (winAmountText) winAmountText.text = FormatWinAmount(amount, currentWinDecimalPlaces);
+        if (winAmountTextPortrait) winAmountTextPortrait.text = "WIN " + FormatWinAmount(amount, currentWinDecimalPlaces);
 
         bool showWinText = amount > 0 || (gameManager != null && gameManager.isInFreeSpins);
 
@@ -1335,13 +1849,36 @@ public class UIManager : MonoBehaviour
     {
         if (balanceTween != null) balanceTween.Kill();
         hasOptimisticBalance = false;
-        SetTMPText(balanceText, balanceTextPortrait, "BALANCE : " + FormatAmount(newBalance));
+        double balanceToDisplay = isFreeGamesFeatureActive ? freeGamesHeldBalance : newBalance;
+        SetTMPText(balanceText, balanceTextPortrait, "BALANCE : " + FormatAmount(balanceToDisplay));
     }
 
     private void AnimateWinUpdate(double targetWin, float duration = 0.8f)
     {
         if (winTween != null) winTween.Kill();
-        UpdateWinDisplay(targetWin);
+
+        targetWin = System.Math.Max(0, targetWin);
+        int targetDecimalPlaces = GetWinDecimalPlaces(targetWin);
+        currentWinDecimalPlaces = targetDecimalPlaces;
+        double startWin = currentWinDisplayValue;
+        if (duration <= 0f || System.Math.Abs(targetWin - startWin) < 0.000001d)
+        {
+            UpdateWinDisplay(targetWin, targetDecimalPlaces);
+            winTween = null;
+            return;
+        }
+
+        winTween = DOTween.To(
+                () => currentWinDisplayValue,
+                value => UpdateWinDisplay(value, targetDecimalPlaces),
+                targetWin,
+                duration)
+            .SetEase(Ease.OutCubic)
+            .OnComplete(() =>
+            {
+                UpdateWinDisplay(targetWin, targetDecimalPlaces);
+                winTween = null;
+            });
     }
 
     #endregion
@@ -1351,6 +1888,28 @@ public class UIManager : MonoBehaviour
     private string FormatAmount(double amount)
     {
         return amount.ToString("0.###");
+    }
+
+    private string FormatWinAmount(double amount, int decimalPlaces)
+    {
+        string format = decimalPlaces > 0
+            ? "0." + new string('0', decimalPlaces)
+            : "0";
+        return amount.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private int GetWinDecimalPlaces(double amount)
+    {
+        double rounded = System.Math.Round(System.Math.Abs(amount), 3);
+        string value = rounded.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        int decimalPoint = value.IndexOf('.');
+        return decimalPoint >= 0 ? value.Length - decimalPoint - 1 : 0;
+    }
+
+    private double GetRunningFreeGamesWin()
+    {
+        double freeGamesWin = gameManager != null ? gameManager.CurrentFreeSpinWin : 0;
+        return System.Math.Max(0, freeGamesTriggerWin + freeGamesWin + freeGamesFeatureWin);
     }
 
     private void SetBetControlsEnabled(bool enabled)
@@ -1413,8 +1972,10 @@ public class UIManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        ClearMidSpinBigWinState(false);
         if (balanceTween != null) balanceTween.Kill();
         if (winTween != null) winTween.Kill();
+        if (freeGamesAmountTween != null) freeGamesAmountTween.Kill();
         DOTween.KillAll();
     }
 
@@ -1444,6 +2005,17 @@ public class UIManager : MonoBehaviour
     }
 
     private bool wheelSpinTriggered = false;
+
+    private void OnWheelOrFreeGamesStartButtonClicked()
+    {
+        if (isFreeGamesFeatureActive && !isFreeGamesEndScreenActive && pendingFreeSpins > 0)
+        {
+            OnFreeGamesStartButtonClicked();
+            return;
+        }
+
+        OnWheelSpinClicked();
+    }
 
     private void OnWheelSpinClicked()
     {
@@ -1489,18 +2061,7 @@ public class UIManager : MonoBehaviour
         // 4. Wait for user to click wheel spin
         yield return new WaitUntil(() => wheelSpinTriggered);
 
-        // 5. Spin Wheel
-        int mainTargetIndex = resultData.sliceIndex;
-        bool mainSpinDone = false;
-        if (mainWheel != null)
-        {
-            mainWheel.SpinToIndex(mainTargetIndex, () => mainSpinDone = true);
-        }
-        else
-        {
-            mainSpinDone = true;
-        }
-        yield return new WaitUntil(() => mainSpinDone);
+        // No controller-driven wheel animation is used here.
         yield return new WaitForSeconds(0.5f);
 
         // 6. Handle the two possibilities
@@ -1577,6 +2138,11 @@ public class UIManager : MonoBehaviour
         }
         else // MULTIPLIER / CREDITS
         {
+            if (gameManager != null && gameManager.isInFreeSpins)
+            {
+                freeGamesFeatureWin += System.Math.Max(0, resultData.winInCash);
+            }
+
             bool takePressed = false;
             ShowUniversalWinPopup(WinPopupType.RegularWin, resultData.winInCash, 0, () =>
             {
@@ -1590,7 +2156,7 @@ public class UIManager : MonoBehaviour
                 gameManager.playerData.balance += resultData.winInCash;
 
                 double targetWin = gameManager.isInFreeSpins
-                    ? gameManager.CurrentFreeSpinWin
+                    ? GetRunningFreeGamesWin()
                     : gameManager.lastResult.winAmount + resultData.winInCash;
                 AnimateWinUpdate(targetWin);
                 AnimateBalanceUpdate(gameManager.playerData.balance, prevBalance);
@@ -1630,101 +2196,6 @@ public class UIManager : MonoBehaviour
         else
         {
             SetSpinStopButtonStates(isSpinningState: true, isInteractable: false);
-        }
-
-        onComplete?.Invoke();
-    }
-
-    internal void TriggerMoneyBagBonus(MoneyBagResultData resultData, System.Action onComplete)
-    {
-        StartCoroutine(MoneyBagBonusSequence(resultData, onComplete));
-    }
-
-    private IEnumerator MoneyBagBonusSequence(MoneyBagResultData resultData, System.Action onComplete)
-    {
-        if (transitionBackFilm != null)
-        {
-            transitionBackFilm.gameObject.SetActive(true);
-            transitionBackFilm.alpha = 0f;
-            yield return transitionBackFilm.DOFade(1f, 0.5f).WaitForCompletion();
-            yield return new WaitForSeconds(0.5f);
-        }
-        
-        SetButtonActive(autoSpinStopButton, autoSpinStopButtonPortrait, false);
-        SetButtonActive(stopButton, stopButtonPortrait, false);
-        SetButtonActive(spinButton, spinButtonPortrait, true);
-        SetButtonInteractable(spinButton, spinButtonPortrait, false);
-
-        bool moneyBagDone = false;
-        
-        if (moneyBagController != null)
-        {
-            moneyBagController.gameObject.SetActive(true);
-            moneyBagController.StartMoneyBagBonus(resultData, () => moneyBagDone = true);
-
-            if (transitionBackFilm != null)
-            {
-                yield return transitionBackFilm.DOFade(0f, 0.5f).WaitForCompletion();
-                transitionBackFilm.gameObject.SetActive(false);
-            }
-
-            yield return new WaitUntil(() => moneyBagDone);
-
-            bool takePressed = false;
-            ShowUniversalWinPopup(WinPopupType.MoneyBagCollect, resultData.winInCash, 0, () =>
-            {
-                takePressed = true;
-            });
-            yield return new WaitUntil(() => takePressed);
-
-            if (gameManager != null && gameManager.lastResult != null)
-            {
-                double prevBalance = gameManager.playerData.balance;
-                gameManager.playerData.balance += resultData.winInCash;
-
-                double targetWin = gameManager.isInFreeSpins
-                    ? gameManager.CurrentFreeSpinWin
-                    : gameManager.lastResult.winAmount + resultData.winInCash;
-                AnimateWinUpdate(targetWin);
-                AnimateBalanceUpdate(gameManager.playerData.balance, prevBalance);
-            }
-            
-            if (transitionBackFilm != null)
-            {
-                transitionBackFilm.gameObject.SetActive(true);
-                transitionBackFilm.alpha = 0f;
-                yield return transitionBackFilm.DOFade(1f, 0.5f).WaitForCompletion();
-                yield return new WaitForSeconds(0.5f);
-            }
-
-            if (moneyBagController != null)
-            {
-                moneyBagController.gameObject.SetActive(false);
-            }
-        }
-        else
-        {
-            moneyBagDone = true;
-            Debug.LogError("MoneyBagController is not assigned in UIManager!");
-        }
-
-        if (transitionBackFilm != null)
-        {
-            yield return transitionBackFilm.DOFade(0f, 0.5f).WaitForCompletion();
-            transitionBackFilm.gameObject.SetActive(false);
-        }
-
-        if (gameManager != null && gameManager.isInFreeSpins)
-        {
-            SetSpinStopButtonStates(isSpinningState: true, isInteractable: false);
-        }
-        else if (gameManager != null && gameManager.isAutoPlaying)
-        {
-            OnAutoPlayStarted();
-        }
-        else
-        {
-            SetSpinStopButtonStates(isSpinningState: false, isInteractable: true);
         }
 
         onComplete?.Invoke();
@@ -1890,6 +2361,12 @@ public class UIManager : MonoBehaviour
 
     private void OnUniversalWinTakeButtonClicked()
     {
+        if (isFreeGamesEndScreenActive)
+        {
+            OnFreeGamesTakeButtonClicked();
+            return;
+        }
+
         AudioManager.Instance?.StopWinObjectBg();
         AudioManager.Instance?.PlayTakeButton();
         CloseUniversalWinPopup();
