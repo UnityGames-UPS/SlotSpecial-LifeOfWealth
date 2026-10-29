@@ -4,6 +4,8 @@ using TMPro;
 using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using UnityEngine.EventSystems;
 
 public class UIManager : MonoBehaviour
@@ -171,6 +173,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text ruleSymbol8Text;
     [SerializeField] private TMP_Text ruleSymbol9Text;
 
+    // Multiplier blocks appear in this order on the Info page. Entries that
+    // show two icons use the first icon because both symbols share a paytable.
+    private static readonly int[] InfoPageMultiplierSymbolIds = { 3, 4, 6, 8, 9, 11, 12, 1 };
+
     [Header("Free Games Feature Panel")]
     [SerializeField] private GameObject freeGamesFeaturePanel;
     [SerializeField] private GameObject freeGamesStartPanel;
@@ -203,6 +209,18 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text majorJackpotTextPortrait;
     [SerializeField] private TMP_Text minorJackpotTextPortrait;
     [SerializeField] private TMP_Text miniJackpotTextPortrait;
+
+    [Header("Platform Jackpot - Portrait Floating Icons")]
+    [SerializeField] private RectTransform grandJackpotIconPortrait;
+    [SerializeField] private RectTransform majorJackpotIconPortrait;
+    [SerializeField] private RectTransform minorJackpotIconPortrait;
+    [SerializeField] private RectTransform miniJackpotIconPortrait;
+
+    private const float PortraitJackpotFloatDistance = 12f;
+    private const float PortraitJackpotFloatDuration = 2f;
+    private readonly List<Tween> portraitJackpotIconTweens = new List<Tween>();
+    private readonly Dictionary<RectTransform, Vector2> portraitJackpotIconStartPositions =
+        new Dictionary<RectTransform, Vector2>();
 
     [Header("Expand-Shrink Controls")]
     [SerializeField] private Button expandButton;
@@ -294,6 +312,7 @@ public class UIManager : MonoBehaviour
 
         if (gameScreen) gameScreen.SetActive(true);
         InitializeUI();
+        StartPortraitJackpotIconAnimations();
         StartCoroutine(WaitForInitialization());
         RegisterFullscreenListener();
     }
@@ -382,6 +401,53 @@ public class UIManager : MonoBehaviour
         SetButtonActive(wheelSpinButton2, wheelSpinButtonPortrait2, false);
         if (transitionBackFilm) transitionBackFilm.gameObject.SetActive(false);
         UpdatePingDisplay("-- ms");
+    }
+
+    private void StartPortraitJackpotIconAnimations()
+    {
+        StopPortraitJackpotIconAnimations(true);
+
+        RectTransform[] jackpotIcons =
+        {
+            grandJackpotIconPortrait,
+            majorJackpotIconPortrait,
+            minorJackpotIconPortrait,
+            miniJackpotIconPortrait
+        };
+
+        for (int i = 0; i < jackpotIcons.Length; i++)
+        {
+            RectTransform icon = jackpotIcons[i];
+            if (icon == null || portraitJackpotIconStartPositions.ContainsKey(icon)) continue;
+
+            Vector2 startPosition = icon.anchoredPosition;
+            portraitJackpotIconStartPositions.Add(icon, startPosition);
+
+            Tween floatTween = icon
+                .DOAnchorPosY(startPosition.y + PortraitJackpotFloatDistance, PortraitJackpotFloatDuration)
+                .SetEase(Ease.InOutSine)
+                .SetDelay(i * 0.3f)
+                .SetLoops(-1, LoopType.Yoyo);
+
+            portraitJackpotIconTweens.Add(floatTween);
+        }
+    }
+
+    private void StopPortraitJackpotIconAnimations(bool restorePositions)
+    {
+        foreach (Tween tween in portraitJackpotIconTweens)
+        {
+            if (tween != null && tween.IsActive()) tween.Kill();
+        }
+        portraitJackpotIconTweens.Clear();
+
+        if (!restorePositions) return;
+
+        foreach (KeyValuePair<RectTransform, Vector2> entry in portraitJackpotIconStartPositions)
+        {
+            if (entry.Key != null) entry.Key.anchoredPosition = entry.Value;
+        }
+        portraitJackpotIconStartPositions.Clear();
     }
 
     #region Loading & Intro Sequence
@@ -1931,39 +1997,72 @@ public class UIManager : MonoBehaviour
             totalLineCountText.text = gameManager.gameConfig.paylineCount.ToString();
         }
 
-        TMP_Text[] symbolTexts = {
+        TMP_Text[] multiplierTexts = {
             ruleSymbol0Text, ruleSymbol1Text, ruleSymbol2Text, ruleSymbol3Text,
             ruleSymbol4Text, ruleSymbol5Text, ruleSymbol6Text, ruleSymbol7Text,
             ruleSymbol8Text, ruleSymbol9Text
         };
 
-        if (gameManager.gameConfig.symbols != null)
+        // Use explicitly assigned fields when available. The current Info-page
+        // layout keeps its formatted blocks under objects named "Multiplier",
+        // so unassigned fields are resolved without altering the scene layout.
+        if (gameRulesPanel != null)
         {
-            for (int i = 0; i < symbolTexts.Length; i++)
+            List<TMP_Text> discoveredTexts = new List<TMP_Text>();
+            foreach (TMP_Text text in gameRulesPanel.GetComponentsInChildren<TMP_Text>(true))
             {
-                if (symbolTexts[i] == null) continue;
+                if (text != null && text.gameObject.name == "Multiplier")
+                    discoveredTexts.Add(text);
+            }
 
-                var symbol = gameManager.gameConfig.symbols.Find(s => s.id == i);
-                if (symbol != null && symbol.multipliers != null && symbol.multipliers.Count > 0)
-                {
-                    double originalBetAmount = gameManager.currentBetAmount;
-                    string fullText = "";
-                    
-                    int currentMatch = 5;
-                    for (int m = 0; m < symbol.multipliers.Count; m++)
-                    {
-                        double win = symbol.multipliers[m];
-                        string line = $"{currentMatch}     {win.ToString("0.###")}";
-                        if (m == 0) fullText = line;
-                        else fullText += $"\n{line}";
-                        
-                        currentMatch--;
-                    }
-                    
-                    symbolTexts[i].text = fullText;
-                }
+            discoveredTexts.Sort((left, right) =>
+                left.transform.parent.GetSiblingIndex().CompareTo(right.transform.parent.GetSiblingIndex()));
+
+            for (int i = 0; i < multiplierTexts.Length && i < discoveredTexts.Count; i++)
+            {
+                if (multiplierTexts[i] == null)
+                    multiplierTexts[i] = discoveredTexts[i];
             }
         }
+
+        if (gameManager.gameConfig.symbols == null) return;
+
+        int multiplierBlockCount = Mathf.Min(InfoPageMultiplierSymbolIds.Length, multiplierTexts.Length);
+        for (int i = 0; i < multiplierBlockCount; i++)
+        {
+            TMP_Text multiplierText = multiplierTexts[i];
+            if (multiplierText == null) continue;
+
+            SymbolInfo symbol = gameManager.gameConfig.symbols.Find(
+                candidate => candidate.id == InfoPageMultiplierSymbolIds[i]);
+
+            if (symbol == null || symbol.multipliers == null || symbol.multipliers.Count == 0)
+                continue;
+
+            multiplierText.text = ReplaceInfoPageMultiplierValues(
+                multiplierText.text,
+                symbol.multipliers);
+        }
+    }
+
+    private static string ReplaceInfoPageMultiplierValues(string formattedText, List<double> multipliers)
+    {
+        if (string.IsNullOrEmpty(formattedText) || multipliers == null || multipliers.Count == 0)
+            return formattedText;
+
+        int multiplierIndex = 0;
+        return Regex.Replace(
+            formattedText,
+            @"(?i)(\bx\s*)([-+]?(?:\d+(?:\.\d*)?|\.\d+))",
+            match =>
+            {
+                if (multiplierIndex >= multipliers.Count) return match.Value;
+
+                string value = multipliers[multiplierIndex]
+                    .ToString("0.###", CultureInfo.InvariantCulture);
+                multiplierIndex++;
+                return match.Groups[1].Value + value;
+            });
     }
 
     #endregion
@@ -1972,6 +2071,7 @@ public class UIManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        StopPortraitJackpotIconAnimations(true);
         ClearMidSpinBigWinState(false);
         if (balanceTween != null) balanceTween.Kill();
         if (winTween != null) winTween.Kill();

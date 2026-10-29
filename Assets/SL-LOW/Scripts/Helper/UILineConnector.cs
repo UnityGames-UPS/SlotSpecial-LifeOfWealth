@@ -24,6 +24,16 @@ public class UILineConnector : MonoBehaviour
     [SerializeField] private Image.Type imageType = Image.Type.Simple;
     [SerializeField] private Material lineMaterial;
 
+    [Header("Rounded Edges and Corners")]
+    [Tooltip("Rounds both ends of every line and all corners where segments meet.")]
+    [SerializeField] private bool roundEdgesAndCorners = false;
+
+    [Header("Border")]
+    [SerializeField] private bool useBorder = false;
+    [SerializeField] private Color borderColor = Color.black;
+    [Range(0f, 50f)]
+    [SerializeField] private float borderWidth = 2f;
+
     [Header("Blending Settings")]
     [Range(0f, 1f)]
     [Tooltip("Extends the segment ends slightly beyond the points to overlap and close sharp angle gaps.")]
@@ -40,6 +50,7 @@ public class UILineConnector : MonoBehaviour
     [SerializeField] private bool isDone = false;
 
     private List<Image> activeSegments = new List<Image>();
+    private List<Image> activeBorderSegments = new List<Image>();
     private RectTransform rectTransform;
 
     public RectTransform StartPoint { get => startPoint; set { startPoint = value; RebuildLine(); } }
@@ -50,6 +61,10 @@ public class UILineConnector : MonoBehaviour
     public Sprite LineSprite { get => lineSprite; set { lineSprite = value; UpdateSegmentStyles(); } }
     public Image.Type ImageType { get => imageType; set { imageType = value; UpdateSegmentStyles(); } }
     public Material LineMaterial { get => lineMaterial; set { lineMaterial = value; UpdateSegmentStyles(); } }
+    public bool RoundEdgesAndCorners { get => roundEdgesAndCorners; set { roundEdgesAndCorners = value; RebuildLine(); } }
+    public bool UseBorder { get => useBorder; set { useBorder = value; RebuildLine(); } }
+    public Color BorderColor { get => borderColor; set { borderColor = value; UpdateSegmentStyles(); } }
+    public float BorderWidth { get => borderWidth; set { borderWidth = Mathf.Max(0f, value); RebuildLine(); } }
     public float OverlapExtension { get => overlapExtension; set { overlapExtension = value; RebuildLine(); } }
     public bool UseProceduralImage { get => useProceduralImage; set { useProceduralImage = value; RebuildLine(); } }
     public bool IsDone { get => isDone; set => isDone = value; }
@@ -129,13 +144,17 @@ public class UILineConnector : MonoBehaviour
             Vector2 direction = localB - localA;
             float distance = direction.magnitude;
 
-            // If overlap extension is enabled, push the start and end of the segment slightly outward
-            if (overlapExtension > 0f && distance > 0.001f)
+            // Rounded segments extend by half their thickness so their end-cap
+            // centres remain exactly on the configured connection points.
+            float extensionLength = roundEdgesAndCorners
+                ? thickness * 0.5f
+                : thickness * overlapExtension;
+
+            if (extensionLength > 0f && distance > 0.001f)
             {
-                float extLength = thickness * overlapExtension;
                 Vector2 dirNormal = direction.normalized;
-                localA -= (Vector3)(dirNormal * extLength);
-                localB += (Vector3)(dirNormal * extLength);
+                localA -= (Vector3)(dirNormal * extensionLength);
+                localB += (Vector3)(dirNormal * extensionLength);
                 direction = localB - localA;
                 distance = direction.magnitude;
             }
@@ -153,6 +172,23 @@ public class UILineConnector : MonoBehaviour
             segRect.localRotation = Quaternion.Euler(0f, 0f, angle);
             segRect.sizeDelta = new Vector2(distance, thickness);
             segRect.localScale = Vector3.one;
+
+            if (useBorder && i < activeBorderSegments.Count && activeBorderSegments[i] != null)
+            {
+                Image borderImage = activeBorderSegments[i];
+                RectTransform borderRect = borderImage.rectTransform;
+                Vector2 directionNormal = distance > 0.001f ? direction.normalized : Vector2.right;
+
+                borderRect.pivot = new Vector2(0f, 0.5f);
+                borderRect.anchorMin = new Vector2(0.5f, 0.5f);
+                borderRect.anchorMax = new Vector2(0.5f, 0.5f);
+                borderRect.localPosition = localA - (Vector3)(directionNormal * borderWidth);
+                borderRect.localRotation = Quaternion.Euler(0f, 0f, angle);
+                borderRect.sizeDelta = new Vector2(
+                    distance + borderWidth * 2f,
+                    thickness + borderWidth * 2f);
+                borderRect.localScale = Vector3.one;
+            }
         }
 
         UpdateSegmentStyles();
@@ -179,108 +215,164 @@ public class UILineConnector : MonoBehaviour
 
     private void EnsureSegmentCount(int count)
     {
-        List<Image> existingChildren = new List<Image>();
+        // Rounded corners require ProceduralImage even when smooth rendering was
+        // otherwise disabled, because a standard Image cannot generate capsules.
+        bool createProceduralSegments = useProceduralImage || roundEdgesAndCorners;
+        System.Type imageComponentType = createProceduralSegments
+            ? typeof(UnityEngine.UI.ProceduralImage.ProceduralImage)
+            : typeof(Image);
+
+        List<Image> existingSegments = FindExistingSegments("Segment_");
+        List<Image> existingBorderSegments = FindExistingSegments("BorderSegment_");
+
+        if (HasComponentTypeMismatch(existingSegments, createProceduralSegments))
+        {
+            DestroySegments(existingSegments);
+            existingSegments.Clear();
+        }
+
+        if (HasComponentTypeMismatch(existingBorderSegments, createProceduralSegments))
+        {
+            DestroySegments(existingBorderSegments);
+            existingBorderSegments.Clear();
+        }
+
+        ResizeSegmentList(existingSegments, count, "Segment_", imageComponentType);
+
+        int neededBorderSegments = useBorder && borderWidth > 0f ? count : 0;
+        ResizeSegmentList(existingBorderSegments, neededBorderSegments, "BorderSegment_", imageComponentType);
+
+        activeSegments = existingSegments;
+        activeBorderSegments = existingBorderSegments;
+
+        // Every border must render behind every fill segment. Pair-by-pair
+        // ordering would leave visible border seams where two lines intersect.
+        for (int i = 0; i < activeBorderSegments.Count; i++)
+            activeBorderSegments[i].transform.SetSiblingIndex(i);
+
+        for (int i = 0; i < activeSegments.Count; i++)
+            activeSegments[i].transform.SetSiblingIndex(activeBorderSegments.Count + i);
+    }
+
+    private List<Image> FindExistingSegments(string namePrefix)
+    {
+        List<Image> segments = new List<Image>();
         foreach (Transform child in transform)
         {
-            Image img = child.GetComponent<Image>();
-            if (img != null && child.name.StartsWith("Segment_"))
-            {
-                existingChildren.Add(img);
-            }
+            Image image = child.GetComponent<Image>();
+            if (image != null && child.name.StartsWith(namePrefix))
+                segments.Add(image);
         }
+        return segments;
+    }
 
-        // Re-create segments if the component type changed (Image vs ProceduralImage)
-        bool typeMismatch = false;
-        foreach (var img in existingChildren)
+    private static bool HasComponentTypeMismatch(List<Image> segments, bool shouldBeProcedural)
+    {
+        foreach (Image image in segments)
         {
-            bool isProcedural = img is UnityEngine.UI.ProceduralImage.ProceduralImage;
-            if (isProcedural != useProceduralImage)
-            {
-                typeMismatch = true;
-                break;
-            }
+            bool isProcedural = image is UnityEngine.UI.ProceduralImage.ProceduralImage;
+            if (isProcedural != shouldBeProcedural) return true;
         }
+        return false;
+    }
 
-        if (typeMismatch)
+    private void ResizeSegmentList(
+        List<Image> segments,
+        int targetCount,
+        string namePrefix,
+        System.Type imageComponentType)
+    {
+        while (segments.Count > targetCount)
         {
-            foreach (var img in existingChildren)
-            {
-                if (img != null)
-                {
-                    if (Application.isPlaying) Destroy(img.gameObject);
-                    else DestroyImmediate(img.gameObject);
-                }
-            }
-            existingChildren.Clear();
+            Image extra = segments[segments.Count - 1];
+            segments.RemoveAt(segments.Count - 1);
+            DestroySegment(extra);
         }
 
-        // Destroy extra segments
-        while (existingChildren.Count > count)
+        while (segments.Count < targetCount)
         {
-            Image extra = existingChildren[existingChildren.Count - 1];
-            existingChildren.RemoveAt(existingChildren.Count - 1);
-            if (extra != null)
+            GameObject segmentObject = new GameObject(
+                $"{namePrefix}{segments.Count}",
+                typeof(RectTransform),
+                imageComponentType);
+            segmentObject.transform.SetParent(transform, false);
+
+            Image image = segmentObject.GetComponent<Image>();
+            if (image is UnityEngine.UI.ProceduralImage.ProceduralImage proceduralImage)
             {
-                if (Application.isPlaying) Destroy(extra.gameObject);
-                else DestroyImmediate(extra.gameObject);
+                proceduralImage.ModifierType = typeof(UniformModifier);
             }
+
+            segments.Add(image);
         }
+    }
 
-        // Spawn missing segments
-        System.Type imageComponentType = useProceduralImage ? typeof(UnityEngine.UI.ProceduralImage.ProceduralImage) : typeof(Image);
-        while (existingChildren.Count < count)
-        {
-            GameObject newSeg = new GameObject($"Segment_{existingChildren.Count}", typeof(RectTransform), imageComponentType);
-            newSeg.transform.SetParent(this.transform, false);
+    private void DestroySegments(List<Image> segments)
+    {
+        foreach (Image segment in segments)
+            DestroySegment(segment);
+    }
 
-            Image img = newSeg.GetComponent<Image>();
-            if (useProceduralImage)
-            {
-                var procImg = img as UnityEngine.UI.ProceduralImage.ProceduralImage;
-                procImg.ModifierType = typeof(UniformModifier);
-                var uniform = procImg.GetComponent<UniformModifier>();
-                if (uniform != null)
-                {
-                    uniform.Radius = 0f; // Perfect rectangle, but anti-aliased by ProceduralImage's shader falloff
-                }
-            }
-            existingChildren.Add(img);
-        }
-
-        activeSegments = existingChildren;
+    private void DestroySegment(Image segment)
+    {
+        if (segment == null) return;
+        if (Application.isPlaying) Destroy(segment.gameObject);
+        else DestroyImmediate(segment.gameObject);
     }
 
     private void UpdateSegmentStyles()
     {
-        // Update line segments
+        if (activeBorderSegments != null)
+        {
+            foreach (Image borderSegment in activeBorderSegments)
+            {
+                ApplySegmentStyle(borderSegment, borderColor);
+            }
+        }
+
         if (activeSegments != null)
         {
-            for (int i = 0; i < activeSegments.Count; i++)
-            {
-                Image img = activeSegments[i];
-                if (img == null) continue;
+            foreach (Image segment in activeSegments)
+                ApplySegmentStyle(segment, lineColor);
+        }
+    }
 
-                img.color = lineColor;
-                img.sprite = lineSprite;
-                img.type = imageType;
-                img.material = lineMaterial;
-                img.raycastTarget = false;
+    private void ApplySegmentStyle(Image image, Color color)
+    {
+        if (image == null) return;
+
+        image.color = color;
+        image.sprite = lineSprite;
+        image.type = imageType;
+        image.material = lineMaterial;
+        image.raycastTarget = false;
+
+        if (image is UnityEngine.UI.ProceduralImage.ProceduralImage proceduralImage)
+        {
+            proceduralImage.ModifierType = typeof(UniformModifier);
+            UniformModifier uniform = proceduralImage.GetComponent<UniformModifier>();
+            if (uniform != null)
+            {
+                uniform.Radius = roundEdgesAndCorners
+                    ? image.rectTransform.sizeDelta.y * 0.5f
+                    : 0f;
             }
         }
     }
 
     private void ClearSegments()
     {
-        if (activeSegments == null) return;
-        foreach (var seg in activeSegments)
+        if (activeSegments != null)
         {
-            if (seg != null)
-            {
-                if (Application.isPlaying) Destroy(seg.gameObject);
-                else DestroyImmediate(seg.gameObject);
-            }
+            DestroySegments(activeSegments);
+            activeSegments.Clear();
         }
-        activeSegments.Clear();
+
+        if (activeBorderSegments != null)
+        {
+            DestroySegments(activeBorderSegments);
+            activeBorderSegments.Clear();
+        }
     }
 
     private void OnDestroy()

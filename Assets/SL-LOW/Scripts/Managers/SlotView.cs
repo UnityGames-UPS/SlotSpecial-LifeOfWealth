@@ -127,6 +127,7 @@ public class SlotView : MonoBehaviour
     private List<Tween> winTweens = new List<Tween>();
     private List<int> reelCycleCount = new List<int>();
     private Coroutine winAnimationCoroutine;
+    private Coroutine loopingWinSymbolsCoroutine;
 
 
     internal List<List<int>> currentDisplayMatrix;
@@ -1017,6 +1018,7 @@ public class SlotView : MonoBehaviour
     private IEnumerator PlayTwoPhaseWinLines(List<WinLine> winLines, System.Action onComplete)
     {
         const int multipleWinLineLoopCount = 2;
+        const int winLinePresentationPassCount = 2;
 
         // ==========================================
         // PHASE 1: Show all winning icons at once
@@ -1069,19 +1071,30 @@ public class SlotView : MonoBehaviour
                 displayWinLines.Add(winLine);
         }
 
-        HashSet<int> firstLinePositions = displayWinLines.Count > 0
-            ? new HashSet<int>(displayWinLines[0].positions)
-            : null;
+        bool keepWinSymbolsLooping = gameManager == null ||
+            (!gameManager.isInFreeSpins && !gameManager.isAutoPlaying);
 
-        // With multiple win lines, first show every winning symbol together
-        // for exactly two complete loops. Positions used by the first individual
-        // line remain active so they do not restart at the phase transition.
-        yield return AnimateWinPositions(
-            allWinPositions,
-            multipleWinLineLoopCount,
-            false,
-            null,
-            firstLinePositions);
+        if (keepWinSymbolsLooping)
+        {
+            // During a normal manual spin, every winning symbol and WinBox keeps
+            // running until StartSpin calls KillWinTweens for the next round.
+            loopingWinSymbolsCoroutine = StartCoroutine(AnimateWinPositions(
+                allWinPositions,
+                multipleWinLineLoopCount,
+                true,
+                null));
+
+            // Preserve the initial all-wins presentation before showing lines.
+            yield return new WaitForSeconds(winSymbolLoopDuration * multipleWinLineLoopCount);
+        }
+        else
+        {
+            yield return AnimateWinPositions(
+                allWinPositions,
+                multipleWinLineLoopCount,
+                false,
+                null);
+        }
 
         HideAllWinLineTexts();
         HideWinLinePresentation();
@@ -1108,29 +1121,27 @@ public class SlotView : MonoBehaviour
         }
 
         // ==========================================
-        // PHASE 2: Individual Win Line presentation loop
+        // PHASE 2: Show every individual win line and amount twice, then stop.
         // ==========================================
-        while (true)
+        for (int presentationPass = 0; presentationPass < winLinePresentationPassCount; presentationPass++)
         {
             for (int lineIndex = 0; lineIndex < displayWinLines.Count; lineIndex++)
             {
                 WinLine winLine = displayWinLines[lineIndex];
-                WinLine nextWinLine = displayWinLines[(lineIndex + 1) % displayWinLines.Count];
-                HashSet<int> nextLinePositions = new HashSet<int>(nextWinLine.positions);
-
                 HideAllWinLineTexts();
                 ShowWinLinePresentation(winLine);
 
-                // Show each individual win line for exactly two complete loops.
-                // Any positions shared with the next line continue uninterrupted.
-                yield return AnimateWinPositions(
-                    winLine.positions,
-                    multipleWinLineLoopCount,
-                    false,
-                    null,
-                    nextLinePositions);
+                // Only the line artwork and amount change here. The complete set
+                // of winning symbols and WinBoxes continues looping underneath.
+                yield return new WaitForSeconds(winSymbolLoopDuration * multipleWinLineLoopCount);
             }
         }
+
+        // The two presentation passes are complete. Hide only the paylines and
+        // amounts; normal-spin symbol and WinBox animations keep running.
+        HideAllWinLineTexts();
+        HideWinLinePresentation();
+        winAnimationCoroutine = null;
     }
 
     private IEnumerator AnimateWinPositions(
@@ -1547,6 +1558,12 @@ public class SlotView : MonoBehaviour
         {
             StopCoroutine(winAnimationCoroutine);
             winAnimationCoroutine = null;
+        }
+
+        if (stopCoroutine && loopingWinSymbolsCoroutine != null)
+        {
+            StopCoroutine(loopingWinSymbolsCoroutine);
+            loopingWinSymbolsCoroutine = null;
         }
 
         // Stop all win animations and disable animation GameObjects
