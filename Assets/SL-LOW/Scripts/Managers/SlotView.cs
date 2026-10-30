@@ -616,6 +616,7 @@ public class SlotView : MonoBehaviour
 
         isSpinning = true;
         KillAllTweens();
+        AudioManager.Instance?.PlaySpinningReel();
 
         DisableAllOverlays();
 
@@ -862,6 +863,10 @@ public class SlotView : MonoBehaviour
         }
 
         // Synchronize the audio impact with the visual landing at Y = 0.
+        if (columnIndex == reelTransforms.Length - 1)
+        {
+            AudioManager.Instance?.StopSpinningReel();
+        }
         AudioManager.Instance?.PlayReelStop();
 
         onLandingComplete?.Invoke();
@@ -1036,8 +1041,6 @@ public class SlotView : MonoBehaviour
         }
 
         Debug.Log($"[PlayTwoPhaseWinLines] Phase 1: Showing all {allWinPositions.Count} winning icons at once for {winLines.Count} win lines");
-
-        AudioManager.Instance?.PlayWinLinePhase1Start();
 
         // A free-spin trigger has another screen waiting after the win display.
         // Keep this animation finite, clean it up before invoking the callback,

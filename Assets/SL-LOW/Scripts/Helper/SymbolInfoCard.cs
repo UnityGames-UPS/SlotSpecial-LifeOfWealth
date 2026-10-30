@@ -149,17 +149,13 @@ public class SymbolInfoCard : MonoBehaviour
             infoText.alignment = TextAlignmentOptions.Center;
             infoText.enableWordWrapping = true;
 
-            if (!string.IsNullOrWhiteSpace(symbolInfo?.description))
+            if (isScatter)
             {
-                infoText.text = symbolInfo.description;
-            }
-            else if (isScatter)
-            {
-                infoText.text = "Pays anywhere. 3 or more Scatter symbols award 15 Free Spins.";
+                infoText.text = "3 or more Scatter Symbols Activate Free Games";
             }
             else
             {
-                infoText.text = "Substitutes for all symbols except Scatter.";
+                infoText.text = "SUBSTITUTES FOR ALL SYMBOLS EXCEPT SCATTER";
             }
         }
         else

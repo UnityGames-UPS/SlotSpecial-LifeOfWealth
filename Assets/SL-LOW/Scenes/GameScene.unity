@@ -27513,7 +27513,7 @@ MonoBehaviour:
   wheelTitleTransform: {fileID: 470394480}
   wheelTitleObjects: []
   transitionBackFilm: {fileID: 1462445609}
-  wheelCoinFountain: {fileID: 1750574426}
+  wheelCoinFountain: {fileID: 0}
   wheelAnticlockwiseRotatingObject: {fileID: 979599963}
   wheelRotationDuration: 8
   wheelSpinButtonPortrait: {fileID: 925257479}
@@ -27530,7 +27530,7 @@ MonoBehaviour:
   uwpFreeSpinObject: {fileID: 0}
   uwpTakeButton: {fileID: 1729874833}
   uwpTakeButtonPortrait: {fileID: 877728123}
-  starFountain: {fileID: 1922287794}
+  starFountain: {fileID: 0}
   spinButton: {fileID: 173060499}
   stopButton: {fileID: 344352412}
   spinButtonPortrait: {fileID: 598712220}
@@ -27593,6 +27593,7 @@ MonoBehaviour:
   guideBackButton: {fileID: 1776222427}
   guideOpenButtonPortrait: {fileID: 593848524}
   totalLineCountText: {fileID: 731576410}
+  totalLineCountTextPortrait: {fileID: 760646805}
   ruleSymbol0Text: {fileID: 0}
   ruleSymbol1Text: {fileID: 0}
   ruleSymbol2Text: {fileID: 0}
@@ -27605,9 +27606,11 @@ MonoBehaviour:
   ruleSymbol9Text: {fileID: 0}
   freeGamesFeaturePanel: {fileID: 1648296704}
   freeGamesStartPanel: {fileID: 149980683}
+  freeGamesStartPanelPortrait: {fileID: 2111798526}
   freeGamesMidPanel: {fileID: 1059663877}
   freeGamesEndPanel: {fileID: 713032395}
   landscapeGreyFilm: {fileID: 1479399609}
+  portraitGreyFilm: {fileID: 57029129}
   freeGamesStartButtonLandscape: {fileID: 2030790027}
   freeGamesStartButtonPortrait: {fileID: 925257479}
   freeGamesTakeButtonLandscape: {fileID: 1729874833}
@@ -36645,7 +36648,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f521a04de7f494272a617b2719edd271, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SocketIOManager
-  testToken: 6cc1d900502c4f4ab97b79b475ae42b9
+  testToken: ea07b2f318f34350b5655bef2fffc7bd
   gameManager: {fileID: 1206269883}
   uiManager: {fileID: 885496184}
   popupManager: {fileID: 1363796882}
@@ -38313,7 +38316,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1920, y: 1080}
+  m_SizeDelta: {x: 1080, y: 1920}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1303604150
 MonoBehaviour:
@@ -38328,63 +38331,63 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ImageAnimation
   textureArray:
-  - {fileID: 21300000, guid: 5cc09c40a7dfb7842ab94590147797c8, type: 3}
-  - {fileID: 21300000, guid: 5ec6c180d40f0104790d8f92c92747bc, type: 3}
-  - {fileID: 21300000, guid: d93ba353020aa2447995c90029b72fa5, type: 3}
-  - {fileID: 21300000, guid: 49a8ea65e4198d640a2783d7f6b57bdb, type: 3}
-  - {fileID: 21300000, guid: 31de5cb5632030f4baf7e9d5d337764c, type: 3}
-  - {fileID: 21300000, guid: b2f7781a4b634ea46a3a8e0925e0b382, type: 3}
-  - {fileID: 21300000, guid: e8875cd925b4e824292536826a462393, type: 3}
-  - {fileID: 21300000, guid: 3e3d23e1e29170a44b48d52db736c2fe, type: 3}
-  - {fileID: 21300000, guid: a13bb3c24c7277b48b871a9de4b9abe8, type: 3}
-  - {fileID: 21300000, guid: 90e86642f29b6a84e80dceb99c8fc456, type: 3}
-  - {fileID: 21300000, guid: 71728b691dd053b42aeb0213ee976156, type: 3}
-  - {fileID: 21300000, guid: a975d086144508343811904071428ed3, type: 3}
-  - {fileID: 21300000, guid: 79d65bd484b0ae242b2eec9be3f62b9f, type: 3}
-  - {fileID: 21300000, guid: 988ecddb5d7f76c478f75e72652b2327, type: 3}
-  - {fileID: 21300000, guid: 64e67892dc6a9824abb344144742f07e, type: 3}
-  - {fileID: 21300000, guid: b8cdd55d413c6b54c94ecf0b431790dd, type: 3}
-  - {fileID: 21300000, guid: fc52ed141ac0f364eb556a1daec09733, type: 3}
-  - {fileID: 21300000, guid: bc07de7f2fba81b47ac7e1c853bddd25, type: 3}
-  - {fileID: 21300000, guid: d1af609e7cff43d44acba910a1aa0d39, type: 3}
-  - {fileID: 21300000, guid: 94c0f00f55ee0a849914ad14d1ad0a1a, type: 3}
-  - {fileID: 21300000, guid: 038af356054285d488aab99203ff63a7, type: 3}
-  - {fileID: 21300000, guid: eaf30ea70314c4c468d4eb731f04312a, type: 3}
-  - {fileID: 21300000, guid: 3676ce7d6de5d0b42acfdc8963c0c80e, type: 3}
-  - {fileID: 21300000, guid: 958ff3a6d93a5b243a77534d7470e779, type: 3}
-  - {fileID: 21300000, guid: 6f89a58a937cb3840ac497fae7c65461, type: 3}
-  - {fileID: 21300000, guid: fa3a31be637377043ae42b1a6f0202cb, type: 3}
-  - {fileID: 21300000, guid: e30736894ca388143a157fcbe423aa91, type: 3}
-  - {fileID: 21300000, guid: 22084e75695e2204bab9da53f62a1988, type: 3}
-  - {fileID: 21300000, guid: 505e50fed3015c941b29079f99cc0b3f, type: 3}
-  - {fileID: 21300000, guid: 133d0aea05a23ad4db642be1906cd57e, type: 3}
-  - {fileID: 21300000, guid: ba1498e377de1ce49b9521765ad36948, type: 3}
-  - {fileID: 21300000, guid: df96134384ec06f4cb64c1e930871bfb, type: 3}
-  - {fileID: 21300000, guid: 871cf23d7303a0349b5e354eed590436, type: 3}
-  - {fileID: 21300000, guid: 12bcf357fafa0534e95c6a7a1419e395, type: 3}
-  - {fileID: 21300000, guid: 0fe680337fc4e5b43af9f1c2db80ffc2, type: 3}
-  - {fileID: 21300000, guid: e6c4cb5fd6b8d2f498bb26a8e619b943, type: 3}
-  - {fileID: 21300000, guid: cf21ae934d5587b40b17135e5529ca1d, type: 3}
-  - {fileID: 21300000, guid: b73b6322d2cfbbe468e4a18e2f97e305, type: 3}
-  - {fileID: 21300000, guid: 3d2e0c20b3b69e44ca3fcbb7652ca068, type: 3}
-  - {fileID: 21300000, guid: 446b4d3c0789c7148a9b234bbfc318d4, type: 3}
-  - {fileID: 21300000, guid: a85b63b359ff5cf4da6cd2ab98b8aae8, type: 3}
-  - {fileID: 21300000, guid: 3a28c8ea9cdafee4bb21bfb35857956e, type: 3}
-  - {fileID: 21300000, guid: 846820040b682d94482c9852f66bbdb2, type: 3}
-  - {fileID: 21300000, guid: dc6c27c516658c547b55fcb4632b6b80, type: 3}
-  - {fileID: 21300000, guid: e2bc4fed7de13f341ac89f0460fd6fa8, type: 3}
-  - {fileID: 21300000, guid: 6c4e54c86719d1646bdd6c34af2ad345, type: 3}
-  - {fileID: 21300000, guid: e88684f8650f4c64f824bd552261ca40, type: 3}
-  - {fileID: 21300000, guid: 6efb26e1412770b4b95ee0104f2e8353, type: 3}
-  - {fileID: 21300000, guid: c3622275b03b1794393ea9f51d09c565, type: 3}
-  - {fileID: 21300000, guid: 7ad43dc942dda5e4a90f45e7c835c310, type: 3}
-  - {fileID: 21300000, guid: 9deac53f040fddd48a4142412bd32e41, type: 3}
-  - {fileID: 21300000, guid: 85de606f99e7af241b3e196c8f451c55, type: 3}
-  - {fileID: 21300000, guid: 72553de971f131644a925d885a45bcfe, type: 3}
-  - {fileID: 21300000, guid: 35af80a5b1797b046a59f827237c6e8c, type: 3}
-  - {fileID: 21300000, guid: 88ee5137ecfffc54586559ba18771008, type: 3}
-  - {fileID: 21300000, guid: 1f3ee6eb91779b74893228c231c1d04a, type: 3}
-  rendererDelegate: {fileID: 0}
+  - {fileID: 21300000, guid: cd7133c490e2e614d980c1a0d30d8ddd, type: 3}
+  - {fileID: 21300000, guid: 833c8e1d49526ec4593a336309ed33f8, type: 3}
+  - {fileID: 21300000, guid: f7cac2cd6c0cb424881c7cdef3c52146, type: 3}
+  - {fileID: 21300000, guid: 0f45d2a9eb9d12348b32781780f2fb22, type: 3}
+  - {fileID: 21300000, guid: 28ecbf5ea05628247a7c1490abd62d45, type: 3}
+  - {fileID: 21300000, guid: 96245ae652994ac429b0f972ef8bdbbc, type: 3}
+  - {fileID: 21300000, guid: 616910c11177ea34287f83820c57e3a7, type: 3}
+  - {fileID: 21300000, guid: 259cbb7ce12f3c140bccb18a447e703f, type: 3}
+  - {fileID: 21300000, guid: 1bc104d4c8e862c4fbb8cb29f6085ab3, type: 3}
+  - {fileID: 21300000, guid: 87bbf007ad7edea4eb522032daf5f958, type: 3}
+  - {fileID: 21300000, guid: 2ce2c2c8fa116444aa07768244cebeda, type: 3}
+  - {fileID: 21300000, guid: 422da8dd205402443944f44ac0cb839a, type: 3}
+  - {fileID: 21300000, guid: b8f6a9f2e6da8104cbba1f587e809e97, type: 3}
+  - {fileID: 21300000, guid: 58a7c738f098ec643a41764e35f664bb, type: 3}
+  - {fileID: 21300000, guid: c8bb127cb0f3eca43894eafbcf2b1c99, type: 3}
+  - {fileID: 21300000, guid: 991f7f65faa74f04ba0908d3b8aa19f1, type: 3}
+  - {fileID: 21300000, guid: 3a132960665ca3d4b9c08c24e360e675, type: 3}
+  - {fileID: 21300000, guid: f407e200af02a60499d4bf16f76edad4, type: 3}
+  - {fileID: 21300000, guid: 6209b4b67f7577d4590794751b4ac9a3, type: 3}
+  - {fileID: 21300000, guid: 72603e79e9bcd854cb5ef3d0430c5c56, type: 3}
+  - {fileID: 21300000, guid: b2b97cd5d30a22b42808ea8b273e3c26, type: 3}
+  - {fileID: 21300000, guid: 9492ce45178ac8846806d4ab79cdc51c, type: 3}
+  - {fileID: 21300000, guid: 9fca124943f928b4ba411365252015d0, type: 3}
+  - {fileID: 21300000, guid: 6fb7f59de7ef4f74e92c278d02e92e34, type: 3}
+  - {fileID: 21300000, guid: 2a7ddffe2d12cec47805b96d937cc81f, type: 3}
+  - {fileID: 21300000, guid: 51bf3a66e4cea9d4dbead275b4fe74d5, type: 3}
+  - {fileID: 21300000, guid: 05c9a0cf893d5794dbecda38185e48a0, type: 3}
+  - {fileID: 21300000, guid: fcaf29cf9b15054419b6f7576d84480d, type: 3}
+  - {fileID: 21300000, guid: 9d59acbc92780534b8fdfaa09c9207b7, type: 3}
+  - {fileID: 21300000, guid: 1a5bafa4115730c49a77218c85f95729, type: 3}
+  - {fileID: 21300000, guid: 6c26b9d6edb98764db7994f7baf84914, type: 3}
+  - {fileID: 21300000, guid: 31c6a8af847855647a03de253c92949b, type: 3}
+  - {fileID: 21300000, guid: 45f484c2348b39b4b865092ab0c4d50a, type: 3}
+  - {fileID: 21300000, guid: 132cfb0808ffa074b8ffca442f37d527, type: 3}
+  - {fileID: 21300000, guid: 379b3981099bc0f408039d9475a12415, type: 3}
+  - {fileID: 21300000, guid: 73c0658cf25e2be428c9bd1509f7c9b5, type: 3}
+  - {fileID: 21300000, guid: 4e6a256aa7b95f04980e59d02f272d30, type: 3}
+  - {fileID: 21300000, guid: 2149f00048a2fa743b7c278663613e94, type: 3}
+  - {fileID: 21300000, guid: 2d3dc1d9b694ff4468d37e7d0eee5af8, type: 3}
+  - {fileID: 21300000, guid: 1632b490b7eb0704eb1679f66782fb20, type: 3}
+  - {fileID: 21300000, guid: 45cfb596bd2ab82409890511d68231b7, type: 3}
+  - {fileID: 21300000, guid: b7eb63b55b929e04096dbe4996da4993, type: 3}
+  - {fileID: 21300000, guid: 6a71fd47f6fc324489085ef5a23c1186, type: 3}
+  - {fileID: 21300000, guid: 3cc7dbed078f1b44e8b351fc9cd63f48, type: 3}
+  - {fileID: 21300000, guid: 825ee207c350da24896ad3c595ad1600, type: 3}
+  - {fileID: 21300000, guid: ff9508ce427d0b940a1c3805d46dfa96, type: 3}
+  - {fileID: 21300000, guid: d15f0811159b0754f9613e0b54d98342, type: 3}
+  - {fileID: 21300000, guid: 87d97a80ff8f5984e8f8b807e7229628, type: 3}
+  - {fileID: 21300000, guid: 12b71a977234c434386f757d732f811c, type: 3}
+  - {fileID: 21300000, guid: 22582e5e442fc34439bea2f4178882cf, type: 3}
+  - {fileID: 21300000, guid: 418915a54b44f9a4dad008d5a35c8939, type: 3}
+  - {fileID: 21300000, guid: 7551fce6e1215f9469d9b36c3394a302, type: 3}
+  - {fileID: 21300000, guid: 6cf6267a2d6af784096744f67ae6a8e5, type: 3}
+  - {fileID: 21300000, guid: 4c64f3bd41c492c4785778284236084a, type: 3}
+  - {fileID: 21300000, guid: f352f57a1f8da784ca0fc650c679122e, type: 3}
+  - {fileID: 21300000, guid: 60e0f84bfcb78bb4086dc549c11f316d, type: 3}
+  rendererDelegate: {fileID: 1303604151}
   useSharedMaterial: 1
   doLoopAnimation: 1
   StartOnAwake: 0
@@ -38412,7 +38415,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 5cc09c40a7dfb7842ab94590147797c8, type: 3}
+  m_Sprite: {fileID: 21300000, guid: cd7133c490e2e614d980c1a0d30d8ddd, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -39433,16 +39436,13 @@ MonoBehaviour:
   clipGameMainBg: {fileID: 8300000, guid: 25ddf52ed6b6d4ae4aea89c0a56e2203, type: 3}
   clipBetPlusMinus: {fileID: 8300000, guid: 2f2b2ed50e5fe4c05bde643bb826e4c2, type: 3}
   clipMaxBetReached: {fileID: 8300000, guid: b556940f8a085479cbf7662d579f648c, type: 3}
-  clipScatterTriggerLoop: {fileID: 8300000, guid: a873c67d75600477baf32901e789e032, type: 3}
-  clipWinObjectBg: {fileID: 8300000, guid: 0ce78e686230d4365926b8a4e24e9b30, type: 3}
   clipPrimaryActionButton: {fileID: 8300000, guid: cdc28904abf8f482a86f75b5b1087cd1, type: 3}
   clipGeneralButtonClick: {fileID: 8300000, guid: 50ff95a09cccb499d80af8f5e75f73c2, type: 3}
   clipPopupOpenClose: {fileID: 8300000, guid: c2ed94ff9b16b4493b05db8e783049c7, type: 3}
   clipAutoplayPanelOpen: {fileID: 8300000, guid: b5fa0e1081b524a02aa50b9b2088ef61, type: 3}
-  clipFeatureOpenLoop: {fileID: 8300000, guid: 9cdc1ff86a873487d97ad4eec7849cc7, type: 3}
   clipFreeSpinBg: {fileID: 8300000, guid: c97b9f215da27434bb5ba3343288f3ef, type: 3}
-  clipWheelSegmentTick: {fileID: 8300000, guid: 839489cb9eafa495989ee5a0b651a1f3, type: 3}
-  clipWinLinePhase1Start: {fileID: 8300000, guid: c494e35d645f344e1a65ed0687a532cf, type: 3}
+  clipSpinningReel: {fileID: 8300000, guid: 9d32b423bf7224dc6af4b774e7f4e568, type: 3}
+  clipNormalWin: {fileID: 8300000, guid: ea7a165544907cd4889f9275b377f434, type: 3}
   clipReelStop: {fileID: 8300000, guid: 16f2d8d30f748472c96c56f3a63797e0, type: 3}
 --- !u!4 &1330086577
 Transform:
@@ -53641,54 +53641,6 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
---- !u!1 &1750574425
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1750574427}
-  - component: {fileID: 1750574426}
-  m_Layer: 0
-  m_Name: CoinFountain
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1750574426
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1750574425}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 704cf75d31015470280b9efb45da3b45, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StarFountain
-  starPrefab: {fileID: 5275717936021542771, guid: 044e6b4ae32434cf3b083b0a96a295a0, type: 3}
-  starSpawnContainer: {fileID: 1992091354}
-  starPoolSize: 200
-  disableEndFadeAndScale: 1
---- !u!4 &1750574427
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1750574425}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.41608, y: -1.04548, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1759071288
 GameObject:
   m_ObjectHideFlags: 0
@@ -58702,54 +58654,6 @@ RectTransform:
   m_AnchoredPosition: {x: -385, y: -195.00005}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!1 &1922287793
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1922287795}
-  - component: {fileID: 1922287794}
-  m_Layer: 0
-  m_Name: StarFountain
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1922287794
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1922287793}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 704cf75d31015470280b9efb45da3b45, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StarFountain
-  starPrefab: {fileID: 6161160857758602816, guid: bb66718d7147a4859954d9fb77b2cdab, type: 3}
-  starSpawnContainer: {fileID: 0}
-  starPoolSize: 200
-  disableEndFadeAndScale: 0
---- !u!4 &1922287795
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1922287793}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.41608, y: -1.04548, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1924988588
 GameObject:
   m_ObjectHideFlags: 0
@@ -64070,7 +63974,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2111798527
 RectTransform:
   m_ObjectHideFlags: 0
@@ -64988,5 +64892,3 @@ SceneRoots:
   - {fileID: 1330086577}
   - {fileID: 1353408118}
   - {fileID: 873413470}
-  - {fileID: 1922287795}
-  - {fileID: 1750574427}

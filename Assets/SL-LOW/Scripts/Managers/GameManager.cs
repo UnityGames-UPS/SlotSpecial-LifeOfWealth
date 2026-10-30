@@ -293,6 +293,10 @@ public class GameManager : MonoBehaviour
                 uiManager.EnableControlsAfterWinAnimation();
                 uiManager.OnSpinCompleted(lastResult);
                 currentState = GameState.Idle;
+                if (!isFreeSpinTrigger)
+                {
+                    AudioManager.Instance?.PlayNormalWin();
+                }
                 slotView.ShowWinLineAnimation(lastResult.winLines, OnWinAnimationComplete);
             }
         }
@@ -380,15 +384,12 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator DelayScatterTriggerResult()
     {
-        AudioManager.Instance?.PlayScatterTriggerLoop();
-
         if (slotView != null)
         {
             slotView.AnimateAllScatters(2);
         }
 
         yield return new WaitForSeconds(2f);
-        AudioManager.Instance?.StopScatterTriggerLoop();
         ProcessSpinResult();
     }
 

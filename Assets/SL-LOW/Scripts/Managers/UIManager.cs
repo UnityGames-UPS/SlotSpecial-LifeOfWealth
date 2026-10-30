@@ -162,6 +162,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Game Rules Dynamic Texts")]
     [SerializeField] private TMP_Text totalLineCountText;
+    [SerializeField] private TMP_Text totalLineCountTextPortrait;
     [SerializeField] private TMP_Text ruleSymbol0Text;
     [SerializeField] private TMP_Text ruleSymbol1Text;
     [SerializeField] private TMP_Text ruleSymbol2Text;
@@ -180,9 +181,11 @@ public class UIManager : MonoBehaviour
     [Header("Free Games Feature Panel")]
     [SerializeField] private GameObject freeGamesFeaturePanel;
     [SerializeField] private GameObject freeGamesStartPanel;
+    [SerializeField] private GameObject freeGamesStartPanelPortrait;
     [SerializeField] private GameObject freeGamesMidPanel;
     [SerializeField] private GameObject freeGamesEndPanel;
     [SerializeField] private GameObject landscapeGreyFilm;
+    [SerializeField] private GameObject portraitGreyFilm;
     [SerializeField] private Button freeGamesStartButtonLandscape;
     [SerializeField] private Button freeGamesStartButtonPortrait;
     [SerializeField] private Button freeGamesTakeButtonLandscape;
@@ -331,6 +334,19 @@ public class UIManager : MonoBehaviour
     {
         UpdateNewWheelSpinButtonsVisibility();
         UpdateFreeGamesActionButtonsVisibility();
+
+        if (isFreeGamesFeatureActive && freeGamesFeaturePanel != null)
+        {
+            bool startActive =
+                (freeGamesStartPanel != null && freeGamesStartPanel.activeSelf) ||
+                (freeGamesStartPanelPortrait != null && freeGamesStartPanelPortrait.activeSelf);
+
+            SetFreeGamesPanelState(
+                freeGamesFeaturePanel.activeSelf,
+                startActive,
+                freeGamesMidPanel != null && freeGamesMidPanel.activeSelf,
+                freeGamesEndPanel != null && freeGamesEndPanel.activeSelf);
+        }
     }
 
     private void UpdateNewWheelSpinButtonsVisibility()
@@ -1332,9 +1348,11 @@ public class UIManager : MonoBehaviour
         bool hasAllReferences =
             freeGamesFeaturePanel != null &&
             freeGamesStartPanel != null &&
+            freeGamesStartPanelPortrait != null &&
             freeGamesMidPanel != null &&
             freeGamesEndPanel != null &&
             landscapeGreyFilm != null &&
+            portraitGreyFilm != null &&
             freeGamesStartButtonLandscape != null &&
             freeGamesStartButtonPortrait != null &&
             freeGamesTakeButtonLandscape != null &&
@@ -1353,11 +1371,16 @@ public class UIManager : MonoBehaviour
 
     private void SetFreeGamesPanelState(bool rootActive, bool startActive, bool midActive, bool endActive)
     {
+        bool isPortraitMode = IsPortraitMode();
+
         if (freeGamesFeaturePanel) freeGamesFeaturePanel.SetActive(rootActive);
-        if (freeGamesStartPanel) freeGamesStartPanel.SetActive(startActive);
+        if (freeGamesStartPanel) freeGamesStartPanel.SetActive(startActive && !isPortraitMode);
+        if (freeGamesStartPanelPortrait) freeGamesStartPanelPortrait.SetActive(startActive && isPortraitMode);
         if (freeGamesMidPanel) freeGamesMidPanel.SetActive(midActive);
         if (freeGamesEndPanel) freeGamesEndPanel.SetActive(endActive);
-        if (landscapeGreyFilm) landscapeGreyFilm.SetActive(rootActive && (startActive || endActive));
+        bool showGreyFilm = rootActive && (startActive || endActive);
+        if (landscapeGreyFilm) landscapeGreyFilm.SetActive(showGreyFilm && !isPortraitMode);
+        if (portraitGreyFilm) portraitGreyFilm.SetActive(showGreyFilm && isPortraitMode);
     }
 
     internal void OnFreeSpinsStarted(int spins, double triggeringGameWin)
@@ -1581,8 +1604,6 @@ public class UIManager : MonoBehaviour
         double totalWin = System.Math.Max(0, gameWin + featureWin);
         SetFreeGamesEndAmounts(0, 0, 0);
 
-        AudioManager.Instance?.PlayWinObjectBg();
-
         if (freeGamesAmountTween != null) freeGamesAmountTween.Kill();
         float amountDuration = Mathf.Max(0.01f, freeGamesAmountCountDuration);
         Sequence amountSequence = DOTween.Sequence();
@@ -1637,7 +1658,6 @@ public class UIManager : MonoBehaviour
     {
         if (!isFreeGamesEndScreenActive) return;
 
-        AudioManager.Instance?.StopWinObjectBg();
         AudioManager.Instance?.PlayTakeButton();
         if (freeGamesAmountTween != null)
         {
@@ -1996,6 +2016,10 @@ public class UIManager : MonoBehaviour
         {
             totalLineCountText.text = gameManager.gameConfig.paylineCount.ToString();
         }
+        if (totalLineCountTextPortrait != null)
+        {
+            totalLineCountTextPortrait.text = gameManager.gameConfig.paylineCount.ToString();
+        }
 
         TMP_Text[] multiplierTexts = {
             ruleSymbol0Text, ruleSymbol1Text, ruleSymbol2Text, ruleSymbol3Text,
@@ -2309,7 +2333,6 @@ public class UIManager : MonoBehaviour
     {
         if (universalWinPopup == null) return;
 
-        AudioManager.Instance?.PlayWinObjectBg();
         isSpecialWinActive = true;
         universalWinPopupCallback = onTakePressed;
 
@@ -2467,7 +2490,6 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        AudioManager.Instance?.StopWinObjectBg();
         AudioManager.Instance?.PlayTakeButton();
         CloseUniversalWinPopup();
     }
@@ -2475,8 +2497,6 @@ public class UIManager : MonoBehaviour
     private void CloseUniversalWinPopup()
     {
         if (universalWinPopup == null || !universalWinPopup.activeSelf) return;
-
-        AudioManager.Instance?.StopWinObjectBg();
 
         if (uwpWinTween != null)
         {
