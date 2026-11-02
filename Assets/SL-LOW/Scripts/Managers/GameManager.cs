@@ -17,7 +17,6 @@ public class GameManager : MonoBehaviour
 
     [Header("Win Settings")]
     [SerializeField] private double bigWinMultiplierThreshold = 500.0;
-    public double BigWinMultiplierThreshold => bigWinMultiplierThreshold;
 
     internal GameConfig gameConfig;
     internal PlayerData playerData;

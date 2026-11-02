@@ -269,7 +269,7 @@ public class UIManager : MonoBehaviour
     private double currentWinDisplayValue = 0;
     private int currentWinDecimalPlaces = 0;
     private bool isSpecialWinActive = false;
-    public bool IsSpecialWinActive => isSpecialWinActive;
+    internal bool IsSpecialWinActive => isSpecialWinActive;
     public System.Action OnSpecialWinComplete;
     private ImageAnimation activeBigWinAnimation;
     private System.Action<int> bigWinLoopCompleteHandler;

@@ -55,7 +55,7 @@ public class SymbolInfoCard : MonoBehaviour
         return null;
     }
 
-    public void ShowCard(int symbolId, int colIndex, int rowIndex, RectTransform symbolRect, GameManager gameManager)
+    internal void ShowCard(int symbolId, int colIndex, int rowIndex, RectTransform symbolRect, GameManager gameManager)
     {
         // Toggle hide if clicking the exact same symbol position while visible
         if (gameObject.activeSelf && activeCol == colIndex && activeRow == rowIndex)
@@ -113,7 +113,7 @@ public class SymbolInfoCard : MonoBehaviour
         HideCard();
     }
 
-    public void RefreshCard(GameManager gameManager = null)
+    internal void RefreshCard(GameManager gameManager = null)
     {
         if (!gameObject.activeSelf || activeSymbolId < 0) return;
         if (gameManager != null) cachedGameManager = gameManager;
@@ -204,7 +204,7 @@ public class SymbolInfoCard : MonoBehaviour
         }
     }
 
-    public void HideCard()
+    internal void HideCard()
     {
         if (autoCloseCoroutine != null)
         {

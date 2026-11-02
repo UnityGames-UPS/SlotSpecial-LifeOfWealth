@@ -8,11 +8,11 @@ public class SpinButtonHoldHandler : MonoBehaviour, IPointerDownHandler, IPointe
 {
     [Header("Hold Settings")]
     [Tooltip("How long to hold the button before the hold event triggers")]
-    public float holdDuration = 3.0f;
+    [SerializeField] internal float holdDuration = 3.0f;
     
     [Header("Events")]
-    public UnityEvent OnClick;
-    public UnityEvent OnHoldThreeSeconds;
+    [SerializeField] internal UnityEvent OnClick;
+    [SerializeField] internal UnityEvent OnHoldThreeSeconds;
     
     private bool isPointerDown;
     private bool holdTriggered;
