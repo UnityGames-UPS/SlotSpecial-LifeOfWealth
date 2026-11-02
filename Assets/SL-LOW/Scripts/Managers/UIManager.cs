@@ -755,6 +755,11 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    internal void DisableSpinButtonInteraction()
+    {
+        SetButtonInteractable(spinButton, spinButtonPortrait, false);
+    }
+
     internal void OnSpinStopping(SpinResult result = null)
     {
         UpdateBalanceDisplay();
@@ -792,7 +797,11 @@ public class UIManager : MonoBehaviour
         }
         else
         {
-            SetSpinStopButtonStates(isSpinningState: false, isInteractable: true);
+            bool hasConfirmedFreeSpinTrigger = result?.freeSpinData != null &&
+                result.freeSpinData.isTriggered;
+            SetSpinStopButtonStates(
+                isSpinningState: false,
+                isInteractable: !hasConfirmedFreeSpinTrigger);
 
             SetBetControlsEnabled(true);
             SetButtonInteractable(settingsOpenButton, settingsOpenButtonPortrait, true);
@@ -829,6 +838,7 @@ public class UIManager : MonoBehaviour
 
         // Toggling restarts the sprite animation from frame zero. The game flow
         // remains paused until ImageAnimation reports that two loops completed.
+        AudioManager.Instance?.PlayBigWin();
         bigWinObject.SetActive(false);
         bigWinObject.SetActive(true);
     }
@@ -846,6 +856,7 @@ public class UIManager : MonoBehaviour
         System.Action callback = bigWinCompletionCallback;
         bigWinCompletionCallback = null;
 
+        AudioManager.Instance?.StopBigWin();
         if (bigWinObject != null) bigWinObject.SetActive(false);
         isSpecialWinActive = false;
 
@@ -1306,6 +1317,7 @@ public class UIManager : MonoBehaviour
     {
         if (gameRulesPanel == null) return;
         gameRulesPanel.SetActive(true);
+        ResetPanelScrollToTop(gameRulesPanel);
     }
 
     private void CloseGameRulesPanel()
@@ -1331,6 +1343,17 @@ public class UIManager : MonoBehaviour
     {
         if (guidePanel == null) return;
         guidePanel.SetActive(true);
+        ResetPanelScrollToTop(guidePanel);
+    }
+
+    private static void ResetPanelScrollToTop(GameObject panel)
+    {
+        ScrollRect scrollRect = panel.GetComponentInChildren<ScrollRect>(true);
+        if (scrollRect == null) return;
+
+        Canvas.ForceUpdateCanvases();
+        scrollRect.StopMovement();
+        scrollRect.verticalNormalizedPosition = 1f;
     }
 
     private void CloseGuidePanel()

@@ -7,6 +7,8 @@ using DG.Tweening;
 
 public class SlotView : MonoBehaviour
 {
+    private const int ScatterCountForAnticipation = 2;
+
     [Header("References")]
     [SerializeField] private GameManager gameManager;
 
@@ -104,6 +106,13 @@ public class SlotView : MonoBehaviour
     [Tooltip("Duration of the single continuous reel landing tween to Y = 0.")]
     [SerializeField] private float reelLandingDuration = 0.25f;
 
+    [Header("Scatter Anticipation")]
+    [Tooltip("Anticipation visuals for reels 2 through 5, in that order.")]
+    [SerializeField] private GameObject[] scatterAnticipationObjects = new GameObject[4];
+    [SerializeField, Min(0f)] private float scatterAnticipationDuration = 3f;
+    [SerializeField, Min(0f)] private float scatterAnticipationSoundFadeDuration = 0.4f;
+    [SerializeField, Min(1f)] private float scatterAnticipationSpeedMultiplier = 1.5f;
+
     [Header("Quick Spin Settings")]
     [SerializeField] private float quickStopDuration = 0.2f;
     [SerializeField] private int minSpinCyclesBeforeStop = 3;
@@ -126,6 +135,8 @@ public class SlotView : MonoBehaviour
     private List<Tween> spinTweens = new List<Tween>();
     private List<Tween> winTweens = new List<Tween>();
     private List<int> reelCycleCount = new List<int>();
+    private readonly float[] reelCycleBaseDurations = new float[5];
+    private readonly bool[] reelIsAnticipating = new bool[5];
     private Coroutine winAnimationCoroutine;
     private Coroutine loopingWinSymbolsCoroutine;
 
@@ -152,6 +163,7 @@ public class SlotView : MonoBehaviour
         }
         DisableAllOverlays();
         HideWinLinePresentation();
+        StopAllScatterAnticipationVisuals();
         SetupSymbolButtons();
     }
 
@@ -667,24 +679,16 @@ public class SlotView : MonoBehaviour
         Transform slotTransform = reelTransforms[columnIndex];
 
         float travel = GetAlignedSpinTravel(columnIndex);
-        float configuredCycleDuration = normalSpinCycleDuration;
-        if (gameManager != null)
-        {
-            if (gameManager.currentSpinSpeed == SpinSpeed.Turbo)
-                configuredCycleDuration = normalSpinCycleDuration / Mathf.Max(0.01f, turboSpinSpeedMultiplier);
-            else if (gameManager.currentSpinSpeed == SpinSpeed.QuickSpin)
-                configuredCycleDuration = quickSpinCycleDuration;
-        }
-
-        float cycleDuration = configuredCycleDuration > 0f
-            ? configuredCycleDuration
+        float baseCycleDuration = normalSpinCycleDuration > 0f
+            ? normalSpinCycleDuration
             : (travel * 2f) / Mathf.Max(1f, spinSpeed);
+        reelCycleBaseDurations[columnIndex] = baseCycleDuration;
 
         // The strip is presentation-only: move the existing fixed symbols through
         // the mask and restart the transform. No sprite is replaced during a spin.
         slotTransform.localPosition = new Vector3(slotTransform.localPosition.x, middlePosition + travel, 0f);
         Tween cycleTween = slotTransform
-            .DOLocalMoveY(middlePosition - travel, cycleDuration)
+            .DOLocalMoveY(middlePosition - travel, baseCycleDuration)
             .SetEase(Ease.Linear)
             .SetLoops(-1, LoopType.Restart)
             .OnStepComplete(() =>
@@ -697,6 +701,63 @@ public class SlotView : MonoBehaviour
             spinTweens.Add(cycleTween);
         else
             spinTweens[columnIndex] = cycleTween;
+
+        ApplyCurrentSpinSpeedToReel(columnIndex);
+    }
+
+    internal void OnSpinSpeedChanged(SpinSpeed speed)
+    {
+        if (!isSpinning) return;
+
+        if (speed == SpinSpeed.QuickSpin)
+        {
+            // Quick/Skip never uses anticipation. Its active wait coroutine will
+            // see this mode on the next frame and continue straight to landing.
+            StopAllScatterAnticipationVisuals();
+        }
+
+        for (int reelIndex = 0; reelIndex < reelCycleBaseDurations.Length; reelIndex++)
+        {
+            ApplyCurrentSpinSpeedToReel(reelIndex);
+        }
+    }
+
+    private void ApplyCurrentSpinSpeedToReel(int reelIndex)
+    {
+        if (reelIndex < 0 || reelIndex >= reelCycleBaseDurations.Length ||
+            reelIndex >= spinTweens.Count)
+            return;
+
+        Tween reelTween = spinTweens[reelIndex];
+        float baseCycleDuration = reelCycleBaseDurations[reelIndex];
+        if (baseCycleDuration <= 0f || reelTween == null || !reelTween.IsActive())
+            return;
+
+        SpinSpeed speed = gameManager != null
+            ? gameManager.currentSpinSpeed
+            : SpinSpeed.Normal;
+        float targetCycleDuration = GetCycleDurationForSpeed(speed);
+        float targetTimeScale = baseCycleDuration / Mathf.Max(0.01f, targetCycleDuration);
+
+        if (speed != SpinSpeed.QuickSpin && reelIsAnticipating[reelIndex])
+        {
+            targetTimeScale *= Mathf.Max(1f, scatterAnticipationSpeedMultiplier);
+        }
+
+        reelTween.timeScale = targetTimeScale;
+    }
+
+    private float GetCycleDurationForSpeed(SpinSpeed speed)
+    {
+        switch (speed)
+        {
+            case SpinSpeed.Turbo:
+                return normalSpinCycleDuration / Mathf.Max(0.01f, turboSpinSpeedMultiplier);
+            case SpinSpeed.QuickSpin:
+                return quickSpinCycleDuration;
+            default:
+                return normalSpinCycleDuration;
+        }
     }
 
     #endregion
@@ -778,20 +839,35 @@ public class SlotView : MonoBehaviour
             stagger = TurboReelStopStagger;
 
         int completedReels = 0;
+        int stoppedScatterCount = 0;
+        float nextReelDelay = 0f;
 
         for (int col = 0; col < 5; col++)
         {
-            float delay = col * stagger;
+            if (col > 0)
+            {
+                nextReelDelay += stagger;
+            }
+
+            bool shouldAnticipate = !isQuickStop && !stopTogether &&
+                stoppedScatterCount == ScatterCountForAnticipation;
+            float anticipationDuration = shouldAnticipate
+                ? scatterAnticipationDuration
+                : 0f;
             bool waitForCycleBoundary = !isQuickStop && !stopTogether &&
                 !useFixedNormalStopCadence &&
                 !useFixedTurboStopCadence;
             StartCoroutine(StopSingleReel(
                 col,
                 resultMatrix[col],
-                delay,
+                nextReelDelay,
+                anticipationDuration,
                 isQuickStop,
                 waitForCycleBoundary,
                 () => completedReels++));
+
+            nextReelDelay += anticipationDuration;
+            stoppedScatterCount += CountScatterSymbols(resultMatrix[col]);
         }
 
         yield return new WaitUntil(() => completedReels >= 5);
@@ -805,29 +881,44 @@ public class SlotView : MonoBehaviour
         int columnIndex,
         List<int> targetSymbols,
         float delay,
+        float anticipationDuration,
         bool isQuickStop,
         bool waitForCycleBoundary,
         System.Action onLandingComplete)
     {
         if (delay > 0)
         {
-            yield return new WaitForSeconds(delay);
+            float elapsedDelay = 0f;
+            while (elapsedDelay < delay && !IsQuickSpinSelected())
+            {
+                elapsedDelay += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        if (anticipationDuration > 0f)
+        {
+            yield return PlayScatterAnticipation(columnIndex, anticipationDuration);
         }
 
         // Turbo can still finish its current strip pass. Normal mode deliberately
         // skips this variable wait so every reel starts landing at a fixed cadence.
-        if (waitForCycleBoundary && columnIndex < reelCycleCount.Count)
+        if (waitForCycleBoundary && !IsQuickSpinSelected() && columnIndex < reelCycleCount.Count)
         {
             // Capture after the stagger. Capturing before it can make this
             // condition stale and stop the reel in the middle of a pass.
             int cycleCountWhenStopRequested = reelCycleCount[columnIndex];
-            yield return new WaitUntil(() => reelCycleCount[columnIndex] > cycleCountWhenStopRequested);
+            yield return new WaitUntil(() =>
+                IsQuickSpinSelected() ||
+                reelCycleCount[columnIndex] > cycleCountWhenStopRequested);
         }
 
         if (columnIndex < spinTweens.Count && spinTweens[columnIndex] != null)
         {
             spinTweens[columnIndex].Kill();
         }
+        reelCycleBaseDurations[columnIndex] = 0f;
+        reelIsAnticipating[columnIndex] = false;
 
         Transform slotTransform = reelTransforms[columnIndex];
 
@@ -842,7 +933,7 @@ public class SlotView : MonoBehaviour
         // ── Play reel-stop sound immediately when symbols lock in ──────────
         // ──────────────────────────────────────────────────────────────────
 
-        if (isQuickStop)
+        if (isQuickStop || IsQuickSpinSelected())
         {
             Tween quickLandingTween = slotTransform
                 .DOLocalMoveY(middlePosition, quickStopDuration)
@@ -869,7 +960,122 @@ public class SlotView : MonoBehaviour
         }
         AudioManager.Instance?.PlayReelStop();
 
+        int scatterSymbolId = gameManager?.gameConfig?.scatterSymbolId ?? -1;
+        if (scatterSymbolId >= 0 && targetSymbols != null && targetSymbols.Contains(scatterSymbolId))
+        {
+            AudioManager.Instance?.PlayScatterInReel();
+        }
+
         onLandingComplete?.Invoke();
+    }
+
+    private int CountScatterSymbols(IReadOnlyList<int> symbols)
+    {
+        int scatterSymbolId = gameManager?.gameConfig?.scatterSymbolId ?? -1;
+        if (scatterSymbolId < 0 || symbols == null) return 0;
+
+        int scatterCount = 0;
+        int visibleRowCount = Mathf.Min(3, symbols.Count);
+        for (int row = 0; row < visibleRowCount; row++)
+        {
+            if (symbols[row] == scatterSymbolId)
+            {
+                scatterCount++;
+            }
+        }
+        return scatterCount;
+    }
+
+    private IEnumerator PlayScatterAnticipation(int reelIndex, float duration)
+    {
+        if (duration <= 0f || reelIndex <= 0 || reelIndex >= 5 || IsQuickSpinSelected())
+            yield break;
+
+        reelIsAnticipating[reelIndex] = true;
+        ApplyCurrentSpinSpeedToReel(reelIndex);
+
+        GameObject anticipationVisual = GetScatterAnticipationVisual(reelIndex);
+        ImageAnimation anticipationAnimation = anticipationVisual != null
+            ? anticipationVisual.GetComponent<ImageAnimation>()
+            : null;
+        if (anticipationVisual != null)
+        {
+            anticipationVisual.SetActive(true);
+            if (anticipationAnimation != null)
+            {
+                anticipationAnimation.doLoopAnimation = true;
+                anticipationAnimation.StopAnimation();
+                anticipationAnimation.StartAnimation();
+            }
+        }
+
+        AudioManager.Instance?.PlayReelTension();
+
+        float elapsed = 0f;
+        float fadeDuration = Mathf.Min(scatterAnticipationSoundFadeDuration, duration);
+        bool fadeStarted = false;
+        while (elapsed < duration && reelIsAnticipating[reelIndex] && !IsQuickSpinSelected())
+        {
+            float remaining = duration - elapsed;
+            if (!fadeStarted && fadeDuration > 0f && remaining <= fadeDuration)
+            {
+                fadeStarted = true;
+                AudioManager.Instance?.FadeOutReelTension(fadeDuration);
+            }
+
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        StopScatterAnticipationVisual(reelIndex);
+        AudioManager.Instance?.StopReelTension();
+        reelIsAnticipating[reelIndex] = false;
+        ApplyCurrentSpinSpeedToReel(reelIndex);
+    }
+
+    private bool IsQuickSpinSelected()
+    {
+        return gameManager != null && gameManager.currentSpinSpeed == SpinSpeed.QuickSpin;
+    }
+
+    private GameObject GetScatterAnticipationVisual(int reelIndex)
+    {
+        int anticipationIndex = reelIndex - 1;
+        return scatterAnticipationObjects != null &&
+            anticipationIndex >= 0 && anticipationIndex < scatterAnticipationObjects.Length
+                ? scatterAnticipationObjects[anticipationIndex]
+                : null;
+    }
+
+    private void StopScatterAnticipationVisual(int reelIndex)
+    {
+        GameObject anticipationVisual = GetScatterAnticipationVisual(reelIndex);
+        if (anticipationVisual == null) return;
+
+        ImageAnimation animation = anticipationVisual.GetComponent<ImageAnimation>();
+        if (animation != null)
+        {
+            animation.doLoopAnimation = false;
+            animation.StopAnimation();
+        }
+        anticipationVisual.SetActive(false);
+    }
+
+    private void StopAllScatterAnticipationVisuals()
+    {
+        AudioManager.Instance?.StopReelTension();
+
+        for (int reelIndex = 0; reelIndex < reelIsAnticipating.Length; reelIndex++)
+        {
+            reelIsAnticipating[reelIndex] = false;
+        }
+
+        if (scatterAnticipationObjects == null) return;
+
+        for (int index = 0; index < scatterAnticipationObjects.Length; index++)
+        {
+            StopScatterAnticipationVisual(index + 1);
+        }
     }
 
     private float GetAlignedSpinTravel(int columnIndex)
@@ -1074,30 +1280,13 @@ public class SlotView : MonoBehaviour
                 displayWinLines.Add(winLine);
         }
 
-        bool keepWinSymbolsLooping = gameManager == null ||
-            (!gameManager.isInFreeSpins && !gameManager.isAutoPlaying);
-
-        if (keepWinSymbolsLooping)
-        {
-            // During a normal manual spin, every winning symbol and WinBox keeps
-            // running until StartSpin calls KillWinTweens for the next round.
-            loopingWinSymbolsCoroutine = StartCoroutine(AnimateWinPositions(
-                allWinPositions,
-                multipleWinLineLoopCount,
-                true,
-                null));
-
-            // Preserve the initial all-wins presentation before showing lines.
-            yield return new WaitForSeconds(winSymbolLoopDuration * multipleWinLineLoopCount);
-        }
-        else
-        {
-            yield return AnimateWinPositions(
-                allWinPositions,
-                multipleWinLineLoopCount,
-                false,
-                null);
-        }
+        // Preserve the initial all-wins presentation for two complete symbol
+        // loops before moving into the individual winning-line sequence.
+        yield return AnimateWinPositions(
+            allWinPositions,
+            multipleWinLineLoopCount,
+            false,
+            null);
 
         HideAllWinLineTexts();
         HideWinLinePresentation();
@@ -1124,27 +1313,43 @@ public class SlotView : MonoBehaviour
         }
 
         // ==========================================
-        // PHASE 2: Show every individual win line and amount twice, then stop.
+        // PHASE 2: Keep one continuous winning-line sequence. The first two
+        // passes include line artwork and payout text; later passes keep the
+        // same symbol/WinBox order with that presentation hidden.
         // ==========================================
-        for (int presentationPass = 0; presentationPass < winLinePresentationPassCount; presentationPass++)
+        int completedPresentationPasses = 0;
+        while (true)
         {
+            bool showLinePresentation = completedPresentationPasses < winLinePresentationPassCount;
+
             for (int lineIndex = 0; lineIndex < displayWinLines.Count; lineIndex++)
             {
                 WinLine winLine = displayWinLines[lineIndex];
                 HideAllWinLineTexts();
-                ShowWinLinePresentation(winLine);
+                HideWinLinePresentation();
 
-                // Only the line artwork and amount change here. The complete set
-                // of winning symbols and WinBoxes continues looping underneath.
-                yield return new WaitForSeconds(winSymbolLoopDuration * multipleWinLineLoopCount);
+                if (showLinePresentation)
+                {
+                    ShowWinLinePresentation(winLine);
+                }
+
+                yield return AnimateWinPositions(
+                    winLine.positions,
+                    multipleWinLineLoopCount,
+                    false,
+                    null);
+            }
+
+            if (showLinePresentation)
+            {
+                completedPresentationPasses++;
+                if (completedPresentationPasses >= winLinePresentationPassCount)
+                {
+                    HideAllWinLineTexts();
+                    HideWinLinePresentation();
+                }
             }
         }
-
-        // The two presentation passes are complete. Hide only the paylines and
-        // amounts; normal-spin symbol and WinBox animations keep running.
-        HideAllWinLineTexts();
-        HideWinLinePresentation();
-        winAnimationCoroutine = null;
     }
 
     private IEnumerator AnimateWinPositions(
@@ -1647,11 +1852,18 @@ public class SlotView : MonoBehaviour
 
     private void KillAllTweens()
     {
+        StopAllScatterAnticipationVisuals();
+
         foreach (var tween in spinTweens)
         {
             tween?.Kill();
         }
         spinTweens.Clear();
+
+        for (int reelIndex = 0; reelIndex < reelCycleBaseDurations.Length; reelIndex++)
+        {
+            reelCycleBaseDurations[reelIndex] = 0f;
+        }
 
         KillWinTweens();
     }

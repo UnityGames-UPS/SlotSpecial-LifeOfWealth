@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class AudioManager : MonoBehaviour
@@ -33,6 +34,7 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioSource uiSource;
     [SerializeField] private AudioSource wheelSegmentSource;
     [SerializeField] private AudioSource reserveSource;
+    [SerializeField] private AudioSource anticipationSource;
 
     [Header("Audio Clips")]
     [SerializeField] private AudioClip clipGameMainBg;
@@ -46,11 +48,16 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip clipSpinningReel;
     [SerializeField] private AudioClip clipNormalWin;
     [SerializeField] private AudioClip clipReelStop;
+    [SerializeField] private AudioClip clipBigWin;
+    [SerializeField] private AudioClip clipScatterInReel;
+    [SerializeField] private AudioClip clipReelTension;
 
     private bool _musicEnabled = true;
     private bool _sfxEnabled   = true;
     private float _musicVolume = 0.5f;
     private float _sfxVolume   = 1.0f;
+    private Coroutine anticipationFadeCoroutine;
+    private AudioSource bigWinSource;
 
     internal bool MusicEnabled => _musicEnabled;
     internal bool SfxEnabled   => _sfxEnabled;
@@ -101,6 +108,8 @@ public class AudioManager : MonoBehaviour
         if (uiSource           != null) uiSource.volume           = v;
         if (wheelSegmentSource != null) wheelSegmentSource.volume = v;
         if (reserveSource      != null) reserveSource.volume      = v;
+        if (anticipationSource != null) anticipationSource.volume = v;
+        if (bigWinSource       != null) bigWinSource.volume       = v;
     }
 
     /// <summary>
@@ -251,6 +260,102 @@ public class AudioManager : MonoBehaviour
             wheelSegmentSource.PlayOneShot(clipReelStop);
         else
             PlayUISound(clipReelStop);
+    }
+
+    // 12. Big Win Presentation
+    internal void PlayBigWin()
+    {
+        if (!_sfxEnabled || clipBigWin == null) return;
+
+        if (bigWinSource == null)
+        {
+            bigWinSource = gameObject.AddComponent<AudioSource>();
+            bigWinSource.playOnAwake = false;
+            bigWinSource.spatialBlend = 0f;
+        }
+
+        bigWinSource.Stop();
+        bigWinSource.clip = clipBigWin;
+        bigWinSource.loop = false;
+        bigWinSource.volume = _sfxVolume;
+        bigWinSource.Play();
+    }
+
+    internal void StopBigWin()
+    {
+        if (bigWinSource == null) return;
+        bigWinSource.Stop();
+        bigWinSource.clip = null;
+    }
+
+    // 13. Scatter Present On A Landing Reel
+    internal void PlayScatterInReel()
+    {
+        PlayUISound(clipScatterInReel);
+    }
+
+    // 14. Scatter Anticipation / Reel Tension
+    internal void PlayReelTension()
+    {
+        StopReelTension();
+        if (!_sfxEnabled || anticipationSource == null || clipReelTension == null) return;
+
+        anticipationSource.clip = clipReelTension;
+        anticipationSource.loop = true;
+        anticipationSource.volume = _sfxVolume;
+        anticipationSource.Play();
+    }
+
+    internal void FadeOutReelTension(float duration)
+    {
+        if (anticipationSource == null || !anticipationSource.isPlaying) return;
+
+        if (anticipationFadeCoroutine != null)
+        {
+            StopCoroutine(anticipationFadeCoroutine);
+        }
+        anticipationFadeCoroutine = StartCoroutine(FadeOutReelTensionRoutine(duration));
+    }
+
+    internal void StopReelTension()
+    {
+        if (anticipationFadeCoroutine != null)
+        {
+            StopCoroutine(anticipationFadeCoroutine);
+            anticipationFadeCoroutine = null;
+        }
+
+        if (anticipationSource == null) return;
+        anticipationSource.Stop();
+        anticipationSource.loop = false;
+        anticipationSource.clip = null;
+        anticipationSource.volume = _sfxEnabled ? _sfxVolume : 0f;
+    }
+
+    private IEnumerator FadeOutReelTensionRoutine(float duration)
+    {
+        float fadeDuration = Mathf.Max(0f, duration);
+        float startVolume = anticipationSource != null ? anticipationSource.volume : 0f;
+
+        if (fadeDuration > 0f)
+        {
+            float elapsed = 0f;
+            while (anticipationSource != null && elapsed < fadeDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                anticipationSource.volume = Mathf.Lerp(startVolume, 0f, elapsed / fadeDuration);
+                yield return null;
+            }
+        }
+
+        anticipationFadeCoroutine = null;
+        if (anticipationSource != null)
+        {
+            anticipationSource.Stop();
+            anticipationSource.loop = false;
+            anticipationSource.clip = null;
+            anticipationSource.volume = _sfxEnabled ? _sfxVolume : 0f;
+        }
     }
 
     private bool isForceMuted = false;

@@ -215,10 +215,11 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator SpinRoutine()
     {
-        float spinDuration = GetSpinDuration();
         float elapsed = 0f;
 
-        while (elapsed < spinDuration && !stopRequested)
+        // Read the duration every frame so changing the speed mode during an
+        // active spin also changes when that same spin is allowed to stop.
+        while (elapsed < GetSpinDuration() && !stopRequested)
         {
             elapsed += Time.deltaTime;
             yield return null;
@@ -426,6 +427,11 @@ public class GameManager : MonoBehaviour
     {
         lastResult = result;
 
+        if (result?.freeSpinData != null && result.freeSpinData.isTriggered)
+        {
+            uiManager?.DisableSpinButtonInteraction();
+        }
+
         if (isInFreeSpins)
         {
             bool isRetrigger =
@@ -550,6 +556,7 @@ public class GameManager : MonoBehaviour
     internal void SetSpinSpeed(SpinSpeed speed)
     {
         currentSpinSpeed = speed;
+        slotView?.OnSpinSpeedChanged(speed);
     }
 
     #endregion
