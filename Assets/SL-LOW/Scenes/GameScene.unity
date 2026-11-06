@@ -36845,7 +36845,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f521a04de7f494272a617b2719edd271, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SocketIOManager
-  testToken: ee7322c384f6414a83757552183d377f
+  testToken: f5e333231d374913afd9dd68db06916e
   gameManager: {fileID: 1206269883}
   uiManager: {fileID: 885496184}
   popupManager: {fileID: 1363796882}
@@ -45893,10 +45893,10 @@ MonoBehaviour:
     - {fileID: 93153651}
   symbolHeight: 255
   spinSpeed: 2500
-  spinTravelDistance: 800
-  normalSpinCycleDuration: 0.55
-  turboSpinSpeedMultiplier: 1.4
-  quickSpinCycleDuration: 0.27
+  spinTravelDistance: 1530
+  normalSpinCycleDuration: 0.9
+  turboSpinSpeedMultiplier: 1.5
+  quickSpinCycleDuration: 0.3
   reelStartStagger: 0
   reelStopStagger: 0.15
   winPopDuration: 0.4
@@ -45911,7 +45911,7 @@ MonoBehaviour:
   scatterAnticipationSoundFadeDuration: 0.4
   scatterAnticipationSpeedMultiplier: 1.5
   quickStopDuration: 0.2
-  minSpinCyclesBeforeStop: 3
+  minSpinCyclesBeforeStop: 2
   winAnimationDuration: 3
   winSymbolLoopDuration: 1.5
   winSymbolLoopCount: 3
