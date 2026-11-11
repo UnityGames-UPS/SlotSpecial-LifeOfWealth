@@ -36845,21 +36845,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f521a04de7f494272a617b2719edd271, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SocketIOManager
-  testToken: f5e333231d374913afd9dd68db06916e
+  testToken: 32a732f0121545d38c1d0770e9adee4f
   gameManager: {fileID: 1206269883}
   uiManager: {fileID: 885496184}
   popupManager: {fileID: 1363796882}
   JSManager: {fileID: 1504510397}
   RaycastBlocker: {fileID: 1502470262}
-  buttons:
-  - {fileID: 848782453}
-  - {fileID: 966170359}
-  - {fileID: 953288079}
-  - {fileID: 895458473}
-  - {fileID: 1794424203}
-  - {fileID: 1689736047}
-  - {fileID: 1390618900}
-  - {fileID: 18037864}
+  buttons: []
   enablePingDebug: 0
 --- !u!4 &1236468291
 Transform:
